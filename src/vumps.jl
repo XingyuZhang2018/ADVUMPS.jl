@@ -82,7 +82,7 @@ function leftorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12
         numiter += 1
     end
     C = R
-    return AL, C, λ
+    return real(AL), real(C), λ
 end
 
 """
@@ -98,36 +98,21 @@ function rightorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-1
 end
 
 """
-    applyH1(AC, FL, FR, M)
-
-Apply the effective Hamiltonian on the center tensor `AC`, by contracting with the left and right
-environment `FL` and `FR` and the MPO tensor `M`
-"""
-function applyH1(AC, FL, FR, M)
-    HAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
-end
-
-"""
-    applyH0(C, FL, FR)
-
-Apply the effective Hamiltonian on the bond matrix C, by contracting with the left and right
-environment `FL` and `FR`
-"""
-function applyH0(C, FL, FR)
-    HC = ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR)
-end
-
-"""
     leftenv(A, M, FL; kwargs)
 
 Compute the left environment tensor for MPS A and MPO M, by finding the left fixed point
 of A - M - conj(A) contracted along the physical dimension.
 """
-function leftenv(A, M, FL = randn(eltype(A), size(A,1), size(M,1), size(A,1)); kwargs...)
-    λs, FLs, info = eigsolve(FL, 1, :LM; ishermitian = false, kwargs...) do FL
-        FL = ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,A,M,conj(A))
-    end
-    return FLs[1], real(λs[1]), info
+function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
+    # λs, FLs, info = eigsolve(FL, 1, :LM; ishermitian = false, kwargs...) do FL
+    #     FL = ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL))
+    # end
+    AA = ein"asf,bpes,cpd -> abcfed"(AL,M,conj(AL))
+    AA = reshape(AA, size(M,1)*size(AL,1)^2, :)
+    λL, FL = lefteig(AA, FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),
+        FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AL,FR,M,conj(AL)), FL; kwargs...)
+    FL = reshape(FL, size(AL,1), size(M,1), size(AL,1))
+    return λL,FL
 end
 """
     rightenv(A, M, FR; kwargs...)
@@ -135,52 +120,35 @@ end
 Compute the right environment tensor for MPS A and MPO M, by finding the right fixed point
 of A - M - conj(A) contracted along the physical dimension.
 """
-function rightenv(A, M, FR = randn(eltype(A), size(A,1), size(M,1), size(A,1)); kwargs...)
-    λs, FRs, info = eigsolve(FR, 1, :LM; ishermitian = false, kwargs...) do FR
-        FR = ein"αpγ,γcη,ascp,βsη -> αaβ"(A,FR,M,conj(A))
-    end
-    return FRs[1], real(λs[1]), info
+function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
+    # λs, FRs, info = eigsolve(FR, 1, :LM; ishermitian = false, kwargs...) do FR
+    #     FR = ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))
+    # end
+    AA = ein"asf,bpes,cpd -> abcfed"(AR,M,conj(AR))
+    AA = reshape(AA, size(M,3)*size(AR,1)^2, :)
+    λR, FR = righteig(AA, FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AR,M,conj(AR)),
+        FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR; kwargs...)
+    # @show norm(λR.*FR-AA*FR)
+    FR = reshape(FR, size(AR,1), size(M,3), size(AR,1))
+    return λR,FR
 end
 
-function vumps(A, M; verbose = true, tol = 1e-6, maxit = 100, kwargs...)
-    AL, = leftorth(A)
-    C, AR = rightorth(AL)
+function ACenv(AC, FL, M, FR;kwargs...)
+    D,d,_ = size(FL)
+    AA = ein"αaγ,asbp,ηbβ -> αsβγpη"(FL,M,FR)
+    AA = reshape(AA,d*D^2,:)
+    μ1, AC = eig(AA,AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC; kwargs...)
+    AC = reshape(AC, D, d, D)
+    return μ1, AC
+end
 
-    FL, λL = leftenv(AL, M; kwargs...)
-    FR, λR = rightenv(AR, M; kwargs...)
-
-    verbose && println("Starting point has λ ≈ $λL ≈ $λR")
-
-    λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
-#     AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
-    FL, λL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
-    FR, λR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
-    # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[] # normalize FL and FR: not really necessary
-
-    # Convergence measure: norm of the projection of the residual onto the tangent space
-    AC = ein"asc,cb -> asb"(AL,C)
-    MAC = applyH1(AC, FL, FR, M)
-    MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
-    err = norm(MAC)
-    i = 1
-    verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
-    while err > tol && i< maxit
-        λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
-#         AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
-        FL, λL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
-        FR, λR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
-        # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[]# normalize FL and FR: not really necessary
-
-        # Convergence measure: norm of the projection of the residual onto the tangent space
-        AC = ein"asc,cb -> asb"(AL,C)
-        MAC = applyH1(AC, FL, FR, M)
-        MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
-        err = norm(MAC)
-
-        i += 1
-        verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
-    end
-    return λ, AL, C, AR, FL, FR
+function Cenv(C, FL, FR;kwargs...)
+    D,d,_ = size(FL)
+    AA = ein"αaγ,ηaβ -> αβγη"(FL,FR)
+    AA = reshape(AA,D^2,:)
+    μ0, C = eig(AA,C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C; kwargs...)
+    C = reshape(C, D, D)
+    return μ0, C
 end
 
 """
@@ -191,11 +159,9 @@ Perform one step of the VUMPS algorithm
 function vumpsstep(AL, C, AR, M, FL, FR; kwargs...)
     D, d, = size(AL)
     AC = ein"asc,cb -> asb"(AL,C)
-    μ1s, ACs, info1 = eigsolve(x->applyH1(x, FL, FR, M), AC, 1, :LM; ishermitian = false, maxiter = 1, kwargs...)
-    μ0s, Cs, info0 = eigsolve(x->applyH0(x, FL, FR), C, 1; ishermitian = false, maxiter = 1, kwargs...)
-    λ = real(μ1s[1]/μ0s[1])
-    AC = ACs[1]
-    C = Cs[1]
+    μ1, AC = ACenv(AC, FL, M, FR; kwargs...)
+    μ0, C = Cenv(C, FL, FR;kwargs...)
+    λ = real(μ1/μ0)
 
     QAC, RAC = qrpos(reshape(AC,(D*d, D)))
     QC, RC = qrpos(C)
@@ -208,4 +174,44 @@ function vumpsstep(AL, C, AR, M, FL, FR; kwargs...)
     errR = norm(LAC-LC)
 
     return λ, AL, C, AR, errL, errR
+end
+
+function vumps(A, M; verbose = true, tol = 1e-6, maxit = 100, kwargs...)
+    AL, = leftorth(A)
+    C, AR = rightorth(AL)
+
+    λL, FL = leftenv(AL, M; kwargs...)
+    λR, FR = rightenv(AR, M; kwargs...)
+
+    verbose && println("Starting point has λ ≈ $λL ≈ $λR")
+
+    λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
+#     AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
+    λL, FL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
+    λR, FR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
+    # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[] # normalize FL and FR: not really necessary
+
+    # Convergence measure: norm of the projection of the residual onto the tangent space
+    AC = ein"asc,cb -> asb"(AL,C)
+    MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
+    MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
+    err = norm(MAC)
+    i = 1
+    verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
+    while err > tol && i< maxit
+        λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
+#         AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
+        λL, FL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
+        λR, FR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
+        # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[]# normalize FL and FR: not really necessary
+                # Convergence measure: norm of the projection of the residual onto the tangent space
+        AC = ein"asc,cb -> asb"(AL,C)
+        MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
+        MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
+        err = norm(MAC)
+
+        i += 1
+        verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
+    end
+    return λ, AL, C, AR, FL, FR
 end
