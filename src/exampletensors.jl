@@ -67,6 +67,20 @@ function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
     return abs(mag/λ)
 end
 
+function energy(model::MT, β, χ) where {MT <: HamiltonianModel}
+    A = rand(ComplexF64,χ,2,χ)
+    # A = rand(Float64,χ,2,χ)
+    M = model_tensor(model, β)
+    Mag = mag_tensor(model, β)
+    _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
+
+    AC = ein"asc,cb -> asb"(AL,C)
+    mag = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Mag,FR,conj(AC))[]
+    λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
+
+    return abs(mag/λ)
+end
+
 """
     magofβ(::Ising,β)
 
