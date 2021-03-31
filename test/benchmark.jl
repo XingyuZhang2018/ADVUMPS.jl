@@ -1,25 +1,25 @@
 using ADVUMPS
-using ADVUMPS:eig
-using IterativeSolvers
+using ADVUMPS:lefteig,righteig
 using BenchmarkTools
 using KrylovKit
 using LinearAlgebra
 
-A = [1 2 3;3 2 1;2 2 1]
-λ,l,r = eig(A,ones(3,3))
-dl,dr = rand(3,1),rand(3,1)
+d = 2
+D = 10
 
-function foo1()
-    ξl = (A .- λ) \ ((1 .- r*l')*dl)
-    ξr = (A' .- λ) \ ((1 .- l*r')*dr)
-end
+β = rand()
+A = rand(D,d,D)
+M = model_tensor(Ising(),β)
 
-function foo2()
-    ξl,ξr = rand(3),rand(3)
-    gmres!(ξl, A .- λ, (1 .- r*l')*dl)
-    gmres!(ξr, A' .- λ, (1 .- l*r')*dr)
-end
+AL, = leftorth(A)
 
-@benchmark foo1()
-@benchmark foo2()
+function foo2(β)
+    M = model_tensor(Ising(),β)
+    λL,FL = leftenv(AL, M)
+    return norm(FL) + real(λL)
+end 
 
+# @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-2)
+
+@benchmark Zygote.gradient(foo2, 1)[1]
+# @benchmark foo2()

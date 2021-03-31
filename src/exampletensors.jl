@@ -47,6 +47,40 @@ function mag_tensor(::Ising, β)
 end
 
 """
+    energy_tensor(::Ising,β)
+
+return the operator for the energy at inverse temperature `β`
+at a site in the two-dimensional ising model on a square lattice in tensor-network form.
+"""
+function energy_tensor(::Ising, β)
+    ham = [-1 1;1 -1]
+    wboltzmann = exp.(-β .* ham)
+    wenergy = ham .* wboltzmann
+    qb = sqrt(wboltzmann)
+    ein"as,si,bi,ci,di -> abcd"(qb^(-1),wenergy,qb,qb,qb)
+end
+
+"""
+    Z(model<:HamiltonianModel, β, χ)
+
+return the partition function of the `model` as a function of the inverse
+temperature `β` and the environment bonddimension `χ` as calculated with
+ctmrg. Requires that `model_tensor` are defined for `model`.
+"""
+function Z(model::MT, β, χ) where {MT <: HamiltonianModel}
+    # A = rand(ComplexF64,χ,2,χ)
+    A = rand(Float64,χ,2,χ)
+    M = model_tensor(model, β)
+    _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
+
+    AC = ein"asc,cb -> asb"(AL,C)
+    z = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
+    λ = ein"αcβ,βη,ηcγ,αγ ->"(FL,C,FR,conj(C))[]
+
+    return z/λ
+end
+
+"""
     magnetisation(model<:HamiltonianModel, β, χ)
 
 return the magnetisation of the `model` as a function of the inverse
@@ -54,8 +88,8 @@ temperature `β` and the environment bonddimension `χ` as calculated with
 ctmrg. Requires that `mag_tensor` and `model_tensor` are defined for `model`.
 """
 function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
-    A = rand(ComplexF64,χ,2,χ)
-    # A = rand(Float64,χ,2,χ)
+    # A = rand(ComplexF64,χ,2,χ)
+    A = rand(Float64,χ,2,χ)
     M = model_tensor(model, β)
     Mag = mag_tensor(model, β)
     _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
@@ -67,18 +101,25 @@ function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
     return abs(mag/λ)
 end
 
+"""
+    energy(model<:HamiltonianModel, β, χ)
+
+return the energy of the `model` as a function of the inverse
+temperature `β` and the environment bonddimension `χ` as calculated with
+ctmrg. Requires that `energy_tensor` and `model_tensor` are defined for `model`.
+"""
 function energy(model::MT, β, χ) where {MT <: HamiltonianModel}
-    A = rand(ComplexF64,χ,2,χ)
-    # A = rand(Float64,χ,2,χ)
+    # A = rand(ComplexF64,χ,2,χ)
+    A = rand(Float64,χ,2,χ)
     M = model_tensor(model, β)
-    Mag = mag_tensor(model, β)
+    Ene = energy_tensor(model, β)
     _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
 
     AC = ein"asc,cb -> asb"(AL,C)
-    mag = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Mag,FR,conj(AC))[]
+    energy = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Ene,FR,conj(AC))[]
     λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
 
-    return abs(mag/λ)
+    return energy/λ*2 # factor 2 for counting horizontal and vertical links
 end
 
 """

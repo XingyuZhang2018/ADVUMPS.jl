@@ -2,7 +2,6 @@ using Zygote
 using ChainRulesCore
 using LinearAlgebra
 using KrylovKit
-using IterativeSolvers
 
 @Zygote.nograd leftorth
 @Zygote.nograd rightorth
@@ -44,7 +43,12 @@ function ChainRulesCore.rrule(::typeof(lefteig),A::AbstractArray{T,2}, fl::Funct
     function back((dλ,dl))
         # ξl = (A - I(s).*λ) \ ((I(s) - r*l')*dl)
         ξl = rand(T,s)
-        gmres!(ξl, A - I(s) .* λ, (I(s) - r*l')*dl)
+        function f(ξl)
+            ξl = reshape(ξl,size(xl))
+            reshape(fr(ξl),:,1)
+        end
+        b = (I(s) - r*l')*dl
+        ξl,_ = linsolve(ξl->f(ξl), b, ξl, -λ, 1; kwargs...)
         ξl -= (l' * ξl) .* r
         # println("test= ",norm((A - I(s) .* λ) * ξl - ((I(s) - r*l')*dl)))
         # println("orth2  ",l'*ξl)
@@ -75,9 +79,14 @@ function ChainRulesCore.rrule(::typeof(righteig),A::AbstractArray{T,2}, fl::Func
     # @show norm(l'.*λ - l'*A)
     # @show norm(λ.*r-A*r)
     function back((dλ,dr))
-        ξr = (A' - I(s)*λ) \ ((I(s) - l*r')*dr)
-        # ξr = rand(T,s)
-        # gmres!(ξr, A' - I(s) .* λ, (I(s) - l*r')*dr)
+        # ξr = (A' - I(s)*λ) \ ((I(s) - l*r')*dr)
+        ξr = rand(T,s)
+        function f(ξr)
+            ξr = reshape(ξr,size(xr))
+            reshape(fl(ξr),:,1)
+        end
+        b = (I(s) - l*r')*dr
+        ξr,_ = linsolve(ξr->f(ξr), b, ξr, -λ, 1; kwargs...)
         ξr -= (r'*ξr) .* l
         # println("test= ",norm((A' - I(s) .* λ) * ξr - ((I(s) - l*r')*dr)))
         # println("orth2  ",r'*ξr)
@@ -103,9 +112,14 @@ function ChainRulesCore.rrule(::typeof(eig),A::AbstractArray{T,2}, f::Function, 
     # @show norm(v'.*λ - v'*A)
     # @show norm(λ.*v-A*v)
     function back((dλ,dv))
-        ξ = (A - I(s).*λ) \ ((I(s) - v*v')*dv)
-        # ξ = rand(T,s)
-        # gmres!(ξ, A - I(s).*λ, (I(s) - v*v')*dv)
+        # ξ = (A - I(s).*λ) \ ((I(s) - v*v')*dv)
+        ξ = rand(T,s)
+        function ff(ξ)
+            ξ = reshape(ξ,size(x₀))
+            reshape(f(ξ),:,1)
+        end
+        b = (I(s) - v*v')*dv
+        ξ,_ = linsolve(ξ->ff(ξ), b, ξ, -λ, 1; kwargs...)
         ξ -= (v'*ξ) .* v
         # println("test = ",norm((A - I(s).*λ) * ξ - ((I(s) - v*v')*dv)))
         # println("orth = ",v'*ξ)

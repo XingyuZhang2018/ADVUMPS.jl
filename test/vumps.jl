@@ -1,5 +1,5 @@
 using ADVUMPS
-using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,vumpsstep,magnetisation,magofβ,magofdβ
+using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,vumpsstep,magnetisation,Z,energy,magofβ,magofdβ
 using LinearAlgebra
 using Random
 using Test
@@ -143,7 +143,11 @@ end
     @test isapprox(magnetisation(Ising(), 0.6,3), magofβ(Ising(),0.6), atol=1e-6)
     @test isapprox(magnetisation(Ising(), 0.8,2), magofβ(Ising(),0.8), atol=1e-6)
 
-    foo = x -> magnetisation(Ising(), x, 3)
-    @test isapprox(num_grad(foo,0.5, δ=1e-6), magofdβ(Ising(),0.5), atol = 1e-3)
-    @test isapprox(Zygote.gradient(foo,0.5)[1], magofdβ(Ising(),0.5), atol = 1e-3)
+    foo1 = x -> -log(Z(Ising(), x, 3))
+    @test isapprox(Zygote.gradient(foo1,0.5)[1], energy(Ising(), 0.5, 3), atol = 1e-6)
+    @test isapprox(Zygote.gradient(foo1,0.5)[1], num_grad(foo1,0.5), atol = 1e-6)
+
+    foo2 = x -> magnetisation(Ising(), x, 3)
+    @test isapprox(num_grad(foo2,0.5), magofdβ(Ising(),0.5), atol = 1e-3)
+    @test isapprox(Zygote.gradient(foo2,0.5)[1], num_grad(foo2,0.5, δ=1e-6), atol = 1e-6)
 end
