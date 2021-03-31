@@ -1,5 +1,5 @@
-using ADTensor
-using ADTensor:eig,leftorth,lefteig,qrpos,lqpos
+using ADVUMPS
+using ADVUMPS:eig,leftorth,lefteig,qrpos,lqpos
 using Test
 using Zygote
 using KrylovKit

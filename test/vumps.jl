@@ -1,5 +1,5 @@
-using ADTensor
-using ADTensor:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,vumpsstep,magnetisation,magofβ,magofdβ
+using ADVUMPS
+using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,vumpsstep,magnetisation,magofβ,magofdβ
 using LinearAlgebra
 using Random
 using Test

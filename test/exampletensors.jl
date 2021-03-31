@@ -1,7 +1,7 @@
-using ADTensor
+using ADVUMPS
+using ADVUMPS: model_tensor, tensorfromclassical
 using Test
 using Zygote, OMEinsum
-using ADTensor: model_tensor, tensorfromclassical
 
 @testset "exampletensor" begin
     β = rand()

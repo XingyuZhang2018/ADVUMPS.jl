@@ -1,7 +1,7 @@
-using ADTensor
+using ADVUMPS
 using Test
 
-@testset "ADTensor.jl" begin
+@testset "ADVUMPS.jl" begin
     @testset "hamiltonianmodels" begin
         println("hamiltonianmodels tests running...")
         include("hamiltonianmodels.jl")

@@ -1,5 +1,5 @@
-using ADTensor
-using ADTensor:eig
+using ADVUMPS
+using ADVUMPS:eig
 using IterativeSolvers
 using BenchmarkTools
 using KrylovKit

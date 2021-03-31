@@ -1,4 +1,4 @@
-name = "ADTensor"
+name = "ADVUMPS"
 uuid = "1846a12a-bf3c-41d7-8528-153c1dad55cd"
 authors = ["Xingyu Zhang <zhangxingyu@iphy.ac.cn> and contributors"]
 version = "0.1.0"
@@ -15,7 +15,7 @@ OMEinsum = "ebe7aa44-baf0-506c-a96f-8464559b3922"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-julia = "1"
+julia = "1.5.4"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
