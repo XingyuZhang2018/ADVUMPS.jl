@@ -1,4 +1,3 @@
-using Zygote
 using ChainRulesCore
 using LinearAlgebra
 using KrylovKit

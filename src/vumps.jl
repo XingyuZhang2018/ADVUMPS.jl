@@ -1,5 +1,4 @@
 using LinearAlgebra
-using OMEinsum
 using KrylovKit
 
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
