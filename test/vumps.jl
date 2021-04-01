@@ -1,5 +1,5 @@
 using ADVUMPS
-using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,vumpsstep,magnetisation,Z,energy,magofβ,magofdβ
+using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,magnetisation,Z,energy,magofβ,magofdβ,num_grad
 using LinearAlgebra
 using Random
 using Test
@@ -112,7 +112,7 @@ end
     _, AR = rightorth(A)
     λR,FR = rightenv(AR, M)
 
-    λ, AL, C, AR, errL, errR = vumpsstep(AL, C, AR, M, FL, FR)
+    λ, AL, C, AR, errL, errR = ACCtoALAR(AL, C, AR, M, FL, FR)
     @test isapprox(errL,0,atol = 1e-1)
     @test isapprox(errR,0,atol = 1e-1)
     @test isapprox(ein"asc,cb -> asb"(AL,C),ein"ac,csb -> asb"(C,AR),atol = 1e-1)
@@ -149,5 +149,5 @@ end
 
     foo2 = x -> magnetisation(Ising(), x, 3)
     @test isapprox(num_grad(foo2,0.5), magofdβ(Ising(),0.5), atol = 1e-3)
-    @test isapprox(Zygote.gradient(foo2,0.5)[1], num_grad(foo2,0.5, δ=1e-6), atol = 1e-6)
+    @test isapprox(Zygote.gradient(foo2,0.5)[1], num_grad(foo2,0.5), atol = 1e-6)
 end

@@ -1,6 +1,104 @@
 using LinearAlgebra
 using KrylovKit
 
+export AbstractLattice, SquareLattice
+abstract type AbstractLattice end
+struct SquareLattice <: AbstractLattice end
+
+export VUMPSRuntime, SquareVUMPSRuntime
+
+# NOTE: should be renamed to more explicit names
+"""
+    VUMPSRuntime{LT}
+
+a struct to hold the tensors during the `vumps` algorithm, containing
+- `d × d × d × d` `M` tensor
+- `D × d × D` `AL` tensor
+- `D × D`     `C` tensor
+- `D × d × D` `AR` tensor
+- `D × d × D` `FL` tensor
+- `D × d × D` `FR` tensor
+and `LT` is a AbstractLattice to define the lattice type.
+"""
+struct VUMPSRuntime{LT,T,N,AT<:AbstractArray{T,N},ET,CT}
+    M::AT
+    AL::ET
+    C::CT
+    AR::ET
+    FL::ET
+    FR::ET
+    function VUMPSRuntime{LT}(M::AT, AL::AbstractArray{T}, C::AbstractArray{T}, AR::AbstractArray{T},
+        FL::AbstractArray{T}, FR::AbstractArray{T}) where {LT<:AbstractLattice,T,N,AT<:AbstractArray{T,N}}
+        new{LT,T,N,AT,typeof(AL),typeof(C)}(M,AL,C,AR,FL,FR)
+    end
+end
+
+const SquareVUMPSRuntime{T,AT} = VUMPSRuntime{SquareLattice,T,4,AT}
+SquareVUMPSRuntime(M::AT,AL,C,AR,FL,FR) where {T,AT<:AbstractArray{T, 4}} = VUMPSRuntime{SquareLattice}(M,AL,C,AR,FL,FR)
+
+getD(rt::VUMPSRuntime) = size(rt.AL, 1)
+getd(rt::VUMPSRuntime) = size(rt.M, 1)
+
+@doc raw"
+    SquareVUMPSRuntime(M::AbstractArray{T,4}, env::Val, χ::Int)
+
+create a `SquareVUMPSRuntime` with M-tensor `M`. The AL,C,AR,FL,FR
+tensors are initialized according to `env`. If `env = Val(:random)`,
+the A is initialized as a random D×d×D tensor,and AL,C,AR are the corresponding 
+canonical form. FL,FR is the left and right environment:
+```
+┌── AL─       ┌──        ─ AR──┐         ──┐    
+│   │         │            │   │           │      
+FL─ M ─  = λL FL─        ─ M ──FR   = λR ──FR   
+│   │         │            │   │           │      
+┕── AL─       ┕──        ─ AR──┘         ──┘  
+```
+
+# example
+
+```jldoctest; setup = :(using ADVUMPS)
+julia> rt = SquareVUMPSRuntime(randn(2,2,2,2), Val(:random), 4);
+
+julia> size(rt.AL) == (4,2,4)
+true
+
+julia> size(rt.C) == (4,4)
+true
+```
+"
+function SquareVUMPSRuntime(M::AbstractArray{T,4}, env::Val, D::Int) where T
+    return SquareVUMPSRuntime(M, _initializect_square(M, env, D)...)
+end
+
+function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) where T
+    d = size(M,1)
+    A = rand(T,D,d,D)
+    AL, = leftorth(A)
+    C, AR = rightorth(AL)
+    _, FL = leftenv(AL, M)
+    _, FR = rightenv(AR, M)
+    AL,C,AR,FL,FR
+end
+
+function vumps(rt::VUMPSRuntime; tol::Real, maxit::Integer)
+    # initialize
+    olderror = Inf
+
+    stopfun = StopFunction(olderror, -1, tol, maxit)
+    rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror, tol), stopfun)
+    # @show err
+    return rt
+end
+
+function vumpstep(rt::VUMPSRuntime,err,tol)
+    M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
+    _, AL, C, AR, = ACCtoALAR(AL, C, AR, M, FL, FR; tol = tol/10)
+    _, FL = leftenv(AL, M; tol = tol/10)
+    _, FR = rightenv(AR, M; tol = tol/10)
+    err = error(AL,C,FL,M,FR)
+    return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err, tol
+end
+
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
 """
     qrpos(A)
@@ -100,7 +198,14 @@ end
     leftenv(A, M, FL; kwargs)
 
 Compute the left environment tensor for MPS A and MPO M, by finding the left fixed point
-of A - M - conj(A) contracted along the physical dimension.
+of AL - M - conj(AL) contracted along the physical dimension.
+```
+┌── AL─       ┌──         
+│   │         │             
+FL─ M ─  = λL FL─         
+│   │         │             
+┕── AL─       ┕──        
+```
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
     # λs, FLs, info = eigsolve(FL, 1, :LM; ishermitian = false, kwargs...) do FL
@@ -117,7 +222,14 @@ end
     rightenv(A, M, FR; kwargs...)
 
 Compute the right environment tensor for MPS A and MPO M, by finding the right fixed point
-of A - M - conj(A) contracted along the physical dimension.
+of AR - M - conj(AR) contracted along the physical dimension.
+```
+ ─ AR──┐         ──┐   
+   │   │           │   
+ ─ M ──FR   = λR ──FR  
+   │   │           │   
+ ─ AR──┘         ──┘  
+```
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
     # λs, FRs, info = eigsolve(FR, 1, :LM; ishermitian = false, kwargs...) do FR
@@ -131,6 +243,7 @@ function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1
     FR = reshape(FR, size(AR,1), size(M,3), size(AR,1))
     return λR,FR
 end
+
 
 function ACenv(AC, FL, M, FR;kwargs...)
     D,d,_ = size(FL)
@@ -150,12 +263,7 @@ function Cenv(C, FL, FR;kwargs...)
     return μ0, C
 end
 
-"""
-    function vumpsstep(AL, C, AR, FL, FR; kwargs...)
-
-Perform one step of the VUMPS algorithm
-"""
-function vumpsstep(AL, C, AR, M, FL, FR; kwargs...)
+function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
     D, d, = size(AL)
     AC = ein"asc,cb -> asb"(AL,C)
     μ1, AC = ACenv(AC, FL, M, FR; kwargs...)
@@ -175,42 +283,9 @@ function vumpsstep(AL, C, AR, M, FL, FR; kwargs...)
     return λ, AL, C, AR, errL, errR
 end
 
-function vumps(A, M; verbose = true, tol = 1e-6, maxit = 100, kwargs...)
-    AL, = leftorth(A)
-    C, AR = rightorth(AL)
-
-    λL, FL = leftenv(AL, M; kwargs...)
-    λR, FR = rightenv(AR, M; kwargs...)
-
-    verbose && println("Starting point has λ ≈ $λL ≈ $λR")
-
-    λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
-#     AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
-    λL, FL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
-    λR, FR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
-    # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[] # normalize FL and FR: not really necessary
-
-    # Convergence measure: norm of the projection of the residual onto the tangent space
+function error(AL,C,FL,M,FR)
     AC = ein"asc,cb -> asb"(AL,C)
     MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
     MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
     err = norm(MAC)
-    i = 1
-    verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
-    while err > tol && i< maxit
-        λ, AL, C, AR, = vumpsstep(AL, C, AR, M, FL, FR; tol = tol/10)
-#         AL, C, = leftorth(AR, C; tol = tol/10, kwargs...) # regauge MPS: not really necessary
-        λL, FL = leftenv(AL, M, FL; tol = tol/10, kwargs...)
-        λR, FR = rightenv(AR, M, FR; tol = tol/10, kwargs...)
-        # FR ./= ein"cba,ad,ce,dbe ->"(FL,C,conj(C),FR)[]# normalize FL and FR: not really necessary
-                # Convergence measure: norm of the projection of the residual onto the tangent space
-        AC = ein"asc,cb -> asb"(AL,C)
-        MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
-        MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
-        err = norm(MAC)
-
-        i += 1
-        verbose && println("Step $i: λ ≈ $λ ≈ $λL ≈ $λR, err ≈ $err")
-    end
-    return λ, AL, C, AR, FL, FR
 end

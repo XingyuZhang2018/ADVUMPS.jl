@@ -2,6 +2,7 @@ using ChainRulesCore
 using LinearAlgebra
 using KrylovKit
 
+@Zygote.nograd StopFunction
 @Zygote.nograd leftorth
 @Zygote.nograd rightorth
 # patch since it's currently broken otherwise

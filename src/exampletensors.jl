@@ -68,10 +68,10 @@ temperature `β` and the environment bonddimension `χ` as calculated with
 ctmrg. Requires that `model_tensor` are defined for `model`.
 """
 function Z(model::MT, β, χ) where {MT <: HamiltonianModel}
-    # A = rand(ComplexF64,χ,2,χ)
-    A = rand(Float64,χ,2,χ)
     M = model_tensor(model, β)
-    _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
+    rt = SquareVUMPSRuntime(M, Val(:random), χ)
+    env = vumps(rt; tol=1e-10, maxit=100)
+    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
 
     AC = ein"asc,cb -> asb"(AL,C)
     z = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
@@ -88,12 +88,11 @@ temperature `β` and the environment bonddimension `χ` as calculated with
 ctmrg. Requires that `mag_tensor` and `model_tensor` are defined for `model`.
 """
 function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
-    # A = rand(ComplexF64,χ,2,χ)
-    A = rand(Float64,χ,2,χ)
     M = model_tensor(model, β)
     Mag = mag_tensor(model, β)
-    _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
-
+    rt = SquareVUMPSRuntime(M, Val(:random), χ)
+    env = vumps(rt; tol=1e-10, maxit=100)
+    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
     AC = ein"asc,cb -> asb"(AL,C)
     mag = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Mag,FR,conj(AC))[]
     λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
@@ -109,11 +108,11 @@ temperature `β` and the environment bonddimension `χ` as calculated with
 ctmrg. Requires that `energy_tensor` and `model_tensor` are defined for `model`.
 """
 function energy(model::MT, β, χ) where {MT <: HamiltonianModel}
-    # A = rand(ComplexF64,χ,2,χ)
-    A = rand(Float64,χ,2,χ)
     M = model_tensor(model, β)
     Ene = energy_tensor(model, β)
-    _, AL, C, AR, FL, FR = vumps(A, M;verbose = false, tol = 1e-10, maxit = 100)
+    rt = SquareVUMPSRuntime(M, Val(:random), χ)
+    env = vumps(rt; tol=1e-10, maxit=100)
+    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
 
     AC = ein"asc,cb -> asb"(AL,C)
     energy = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Ene,FR,conj(AC))[]
