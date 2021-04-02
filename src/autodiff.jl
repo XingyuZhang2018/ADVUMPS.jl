@@ -18,94 +18,63 @@ function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple
     return y, back
 end
 
-#################### to do: fix Gauge so that can only calculate one side ####################
-function lefteig(A::AbstractArray{T,2}, fl::Function, fr::Function, xl::AbstractArray{T}; kwargs...) where {T}
-    λs, ls, _ = eigsolve(fl, xl, 1, :LM; ishermitian = false, kwargs...)
-    λ,l = λs[1], reshape(ls[1],:,1)
-    return real(λ),real(l)
-end
-
-#adjoint for nonsymmetric eigsolve
-#https://journals.aps.org/prb/abstract/10.1103/PhysRevB.101.245139 eq.(12)
-function ChainRulesCore.rrule(::typeof(lefteig),A::AbstractArray{T,2}, fl::Function, fr::Function, 
-                                                                            xl::AbstractArray{T}; kwargs...) where {T}
-    s = size(A,1)
-    λs, ls, _ = eigsolve(fl, xl, 1, :LM; ishermitian = false, kwargs...)
-    λ,l = real(λs[1]), real(reshape(ls[1],:,1))
-    function back((dλ,dl))
-        # ξl = (A - I(s).*λ) \ ((I(s) - r*l')*dl)
-        ξl = (A - I(s).*λ) * rand(T,s)
-        function f(ξl)
-            ξl = reshape(ξl,size(xl))
-            reshape(fr(ξl),:,1)
-        end
-        ξl,info = linsolve(ξl->f(ξl), dl, ξl, -λ, 1; kwargs...)
-        # @show info ξl'*l
-        dA = - l*ξl'
-        return NO_FIELDS, dA, NO_FIELDS, NO_FIELDS, NO_FIELDS
+function ChainRulesCore.rrule(::typeof(leftenv),AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
+    λ, FL = leftenv(AL, M, FL; kwargs...)
+    function back((dλ, dFL))
+        ξl = rand(T,size(FL))
+        ξl = ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL,ξl,M,conj(AL)) - λ .* ξl
+        ξl,info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL,FR,M,conj(AL)), dFL, ξl, -λ, 1; kwargs...)
+        dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL,M,conj(AL),ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL,M,AL,ξl)
+        dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL,AL,conj(AL),ξl)
+        # @show info ein"abc,abc ->"(FL,ξl)[] ein"γpη,γpη -> "(FL,dFL)[]
+        return NO_FIELDS, dAL, dM, NO_FIELDS...
     end
-    return (λ,l), back
+    return (λ, FL), back
 end
 
-function righteig(A::AbstractArray{T,2}, fl::Function, fr::Function, xr::AbstractArray{T}; kwargs...) where {T}
-    λs, rs, _ = eigsolve(fr, xr, 1, :LM; ishermitian = false, kwargs...)
-    λ,r = λs[1], reshape(rs[1],:,1)
-    return real(λ),real(r)
-end
-
-#adjoint for nonsymmetric eigsolve
-#https://journals.aps.org/prb/abstract/10.1103/PhysRevB.101.245139 eq.(12)
-function ChainRulesCore.rrule(::typeof(righteig),A::AbstractArray{T,2}, fl::Function, fr::Function, 
-                                xr::AbstractArray{T}; kwargs...) where {T}
-    s = size(A,1)
-    λs, rs, _ = eigsolve(fr, xr, 1, :LM; ishermitian = false, kwargs...)
-    λ,r = real(λs[1]),  real(reshape(rs[1],:,1))
-    function back((dλ,dr))
-        # ξr = (A' - I(s)*λ) \ ((I(s) - l*r')*dr)
-        ξr = (A' - I(s)*λ) * rand(T,s)
-        function f(ξr)
-            ξr = reshape(ξr,size(xr))
-            reshape(fl(ξr),:,1)
-        end
-        ξr,info = linsolve(ξr->f(ξr), dr, ξr, -λ, 1; kwargs...)
-        # @show info r'*ξr
-        dA = (- ξr) *r'
-        return NO_FIELDS, dA, NO_FIELDS, NO_FIELDS, NO_FIELDS
+function ChainRulesCore.rrule(::typeof(rightenv),AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
+    λ, FR = rightenv(AR, M, FR; kwargs...)
+    function back((dλ, dFR))
+        ξr = rand(T,size(FR))
+        ξr = ein"ηpβ,γcη,csap,γsα -> αaβ"(AR,ξr,M,conj(AR)) - λ .* ξr
+        ξr,info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR,FL,M,conj(AR)), dFR, ξr, -λ, 1; kwargs...)
+        dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr,M,conj(AR),FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr,M,AR,FR)
+        dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr,AR,conj(AR),FR)
+        return NO_FIELDS, dAR, dM, NO_FIELDS...
     end
-    return (λ,r), back
+    return (λ, FR), back
 end
 
-function eig(A::AbstractArray{T,2}, f::Function, x₀::AbstractArray{T}; kwargs...) where {T}
-    λs, vs, _ = eigsolve(f, x₀, 1, :LM; ishermitian = false, kwargs...)
-    λ,v = λs[1], reshape(vs[1],:,1)
-    return real(λ),real(v)
-end
-
-#adjoint for symmetric eigsolve
-#https://journals.aps.org/prb/abstract/10.1103/PhysRevB.101.245139 eq.(13)
-function ChainRulesCore.rrule(::typeof(eig),A::AbstractArray{T,2}, f::Function, x₀::AbstractArray{T}; kwargs...) where {T}
-    s = size(A,1)
-    λ,v = eig(A, f, x₀; kwargs...)
-    # @show v'*v
-    # @show norm(v'.*λ - v'*A)
-    # @show norm(λ.*v-A*v)
-    function back((dλ,dv))
-        # ξ = (A - I(s).*λ) \ ((I(s) - v*v')*dv)
-        ξ = rand(T,s)
-        function ff(ξ)
-            ξ = reshape(ξ,size(x₀))
-            reshape(f(ξ),:,1)
-        end
-        b = (I(s) - v*v')*dv
-        ξ,_ = linsolve(ξ->ff(ξ), b, ξ, -λ, 1; kwargs...)
-        ξ -= (v'*ξ) .* v
-        # println("test = ",norm((A - I(s).*λ) * ξ - ((I(s) - v*v')*dv)))
-        # println("orth = ",v'*ξ)
-        dA = (dλ.*v - ξ)*v'
-        # dA = - ξ*v'
-        return NO_FIELDS, dA, NO_FIELDS, NO_FIELDS
+function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, 
+                                                                    FR::AbstractArray{T}; kwargs...) where {T}
+    λ, AC = ACenv(AC, FL, M, FR; kwargs...)
+    function back((dλ, dAC))
+        ξ = rand(T,size(AC))
+        ξ = ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL,ξ,M,FR) - λ .* ξ
+        # b = dAC - AC .* ein"γpη,γpη -> "(AC,dAC)[]
+        ξ,info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL,AC,M,FR), dAC, ξ, -λ, 1; kwargs...)
+        # @show info ein"abc,abc ->"(AC,ξ)[] ein"γpη,γpη -> "(AC,dAC)[]
+        dFL = -ein"ηpβ,βaα,csap,γsα -> ηcγ"(AC,FR,M,ξ)
+        dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL,AC,ξ,FR)
+        dFR = -ein"ηpβ,γcη,csap,γsα -> αaβ"(AC,FL,M,ξ)
+        return NO_FIELDS, NO_FIELDS, dFL, dM, dFR
     end
-    return (λ,v), back
+    return (λ, AC), back
+end
+
+function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
+    λ, C = Cenv(C, FL, FR; kwargs...)
+    function back((dλ, dC))
+        ξ = rand(T,size(C))
+        ξ = ein"αaγ,αβ,ηaβ -> γη"(FL,ξ,FR) - λ .* ξ
+        # b = dC - C .* ein"γpη,γpη -> "(C,dC)[]
+        ξ,info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL,C,FR), dC, ξ, -λ, 1; kwargs...)
+        # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
+        dFL = -ein"ηβ,βaα,γα -> ηaγ"(C,FR,ξ)
+        dFR = -ein"ηβ,γcη,γα -> αcβ"(C,FL,ξ)
+        return NO_FIELDS, NO_FIELDS, dFL, dFR
+    end
+    return (λ, C), back
 end
 
 #adjoint for QR factorization

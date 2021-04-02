@@ -208,15 +208,8 @@ FL─ M ─  = λL FL─
 ```
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
-    # λs, FLs, info = eigsolve(FL, 1, :LM; ishermitian = false, kwargs...) do FL
-    #     FL = ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL))
-    # end
-    AA = ein"asf,bpes,cpd -> abcfed"(AL,M,conj(AL))
-    AA = reshape(AA, size(M,1)*size(AL,1)^2, :)
-    λL, FL = lefteig(AA, FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),
-        FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AL,FR,M,conj(AL)), FL; kwargs...)
-    FL = reshape(FL, size(AL,1), size(M,1), size(AL,1))
-    return λL,FL
+    λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
+    return real(λs[1]), real(FLs[1])
 end
 """
     rightenv(A, M, FR; kwargs...)
@@ -232,42 +225,26 @@ of AR - M - conj(AR) contracted along the physical dimension.
 ```
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
-    # λs, FRs, info = eigsolve(FR, 1, :LM; ishermitian = false, kwargs...) do FR
-    #     FR = ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))
-    # end
-    AA = ein"asf,bpes,cpd -> abcfed"(AR,M,conj(AR))
-    AA = reshape(AA, size(M,3)*size(AR,1)^2, :)
-    λR, FR = righteig(AA, FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AR,M,conj(AR)),
-        FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR; kwargs...)
-    # @show norm(λR.*FR-AA*FR)
-    FR = reshape(FR, size(AR,1), size(M,3), size(AR,1))
-    return λR,FR
+    λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
+    return real(λs[1]), real(FRs[1])
 end
 
 
 function ACenv(AC, FL, M, FR;kwargs...)
-    D,d,_ = size(FL)
-    AA = ein"αaγ,asbp,ηbβ -> αsβγpη"(FL,M,FR)
-    AA = reshape(AA,d*D^2,:)
-    μ1, AC = eig(AA,AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC; kwargs...)
-    AC = reshape(AC, D, d, D)
-    return μ1, AC
+    λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
+    return real(λs[1]), real(ACs[1])
 end
 
 function Cenv(C, FL, FR;kwargs...)
-    D,d,_ = size(FL)
-    AA = ein"αaγ,ηaβ -> αβγη"(FL,FR)
-    AA = reshape(AA,D^2,:)
-    μ0, C = eig(AA,C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C; kwargs...)
-    C = reshape(C, D, D)
-    return μ0, C
+    λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
+    return real(λs[1]), real(Cs[1])
 end
 
 function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
     D, d, = size(AL)
     AC = ein"asc,cb -> asb"(AL,C)
     μ1, AC = ACenv(AC, FL, M, FR; kwargs...)
-    μ0, C = Cenv(C, FL, FR;kwargs...)
+    μ0, C = Cenv(C, FL, FR; kwargs...)
     λ = real(μ1/μ0)
 
     QAC, RAC = qrpos(reshape(AC,(D*d, D)))

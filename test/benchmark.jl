@@ -20,6 +20,6 @@ using Zygote
 # end 
 
 # # @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-2)
-foo = x -> magnetisation(Ising(), x, 2)
+foo = x -> magnetisation(Ising(), x, 10)
 # @benchmark magnetisation(Ising(), 0.5,2)
 @benchmark Zygote.gradient(foo,0.5)[1]
