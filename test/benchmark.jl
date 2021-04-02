@@ -3,7 +3,7 @@ using ADVUMPS:lefteig,righteig
 using BenchmarkTools
 using KrylovKit
 using LinearAlgebra
-
+using Zygote
 # d = 2
 # D = 10
 
@@ -20,6 +20,6 @@ using LinearAlgebra
 # end 
 
 # # @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-2)
-
-@benchmark magnetisation(Ising(), 0.5,2)
-# @benchmark foo2()
+foo = x -> magnetisation(Ising(), x, 2)
+# @benchmark magnetisation(Ising(), 0.5,2)
+@benchmark Zygote.gradient(foo,0.5)[1]

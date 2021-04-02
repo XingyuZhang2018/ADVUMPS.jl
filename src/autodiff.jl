@@ -21,9 +21,7 @@ end
 #################### to do: fix Gauge so that can only calculate one side ####################
 function lefteig(A::AbstractArray{T,2}, fl::Function, fr::Function, xl::AbstractArray{T}; kwargs...) where {T}
     λs, ls, _ = eigsolve(fl, xl, 1, :LM; ishermitian = false, kwargs...)
-    _, rs, _ = eigsolve(fr, xl, 1, :LM; ishermitian = false, kwargs...)
-    λ,l,r = λs[1], reshape(ls[1],:,1), reshape(rs[1],:,1)
-    l ./= r'*l
+    λ,l = λs[1], reshape(ls[1],:,1)
     return real(λ),real(l)
 end
 
@@ -33,37 +31,25 @@ function ChainRulesCore.rrule(::typeof(lefteig),A::AbstractArray{T,2}, fl::Funct
                                                                             xl::AbstractArray{T}; kwargs...) where {T}
     s = size(A,1)
     λs, ls, _ = eigsolve(fl, xl, 1, :LM; ishermitian = false, kwargs...)
-    _, rs, _ = eigsolve(fr, xl, 1, :LM; ishermitian = false, kwargs...)
-    λ,l,r = real(λs[1]), real(reshape(ls[1],:,1)), real(reshape(rs[1],:,1))
-    l ./= r'*l
-    # r ./= l'*r
-    # @show l'r
-    # @show norm(l'.*λ - l'*A)
-    # @show norm(λ.*r-A*r)
+    λ,l = real(λs[1]), real(reshape(ls[1],:,1))
     function back((dλ,dl))
         # ξl = (A - I(s).*λ) \ ((I(s) - r*l')*dl)
-        ξl = rand(T,s)
+        ξl = (A - I(s).*λ) * rand(T,s)
         function f(ξl)
             ξl = reshape(ξl,size(xl))
             reshape(fr(ξl),:,1)
         end
-        b = (I(s) - r*l')*dl
-        ξl,_ = linsolve(ξl->f(ξl), b, ξl, -λ, 1; kwargs...)
-        ξl -= (l' * ξl) .* r
-        # println("test= ",norm((A - I(s) .* λ) * ξl - ((I(s) - r*l')*dl)))
-        # println("orth2  ",l'*ξl)
-        # dA = dλ.*l*r' - l*ξl' - ξr*r'
-        dA = dλ.*l*r' - l*ξl'
+        ξl,info = linsolve(ξl->f(ξl), dl, ξl, -λ, 1; kwargs...)
+        # @show info ξl'*l
+        dA = - l*ξl'
         return NO_FIELDS, dA, NO_FIELDS, NO_FIELDS, NO_FIELDS
     end
     return (λ,l), back
 end
 
 function righteig(A::AbstractArray{T,2}, fl::Function, fr::Function, xr::AbstractArray{T}; kwargs...) where {T}
-    _, ls, _ = eigsolve(fl, xr, 1, :LM; ishermitian = false, kwargs...)
     λs, rs, _ = eigsolve(fr, xr, 1, :LM; ishermitian = false, kwargs...)
-    λ,l,r = λs[1], reshape(ls[1],:,1), reshape(rs[1],:,1)
-    r ./= l'*r
+    λ,r = λs[1], reshape(rs[1],:,1)
     return real(λ),real(r)
 end
 
@@ -72,26 +58,18 @@ end
 function ChainRulesCore.rrule(::typeof(righteig),A::AbstractArray{T,2}, fl::Function, fr::Function, 
                                 xr::AbstractArray{T}; kwargs...) where {T}
     s = size(A,1)
-    _, ls, _ = eigsolve(fl, xr, 1, :LM; ishermitian = false, kwargs...)
     λs, rs, _ = eigsolve(fr, xr, 1, :LM; ishermitian = false, kwargs...)
-    λ,l,r = real(λs[1]), real(reshape(ls[1],:,1)), real(reshape(rs[1],:,1))
-    r ./= l'*r    
-    # @show norm(l'.*λ - l'*A)
-    # @show norm(λ.*r-A*r)
+    λ,r = real(λs[1]),  real(reshape(rs[1],:,1))
     function back((dλ,dr))
         # ξr = (A' - I(s)*λ) \ ((I(s) - l*r')*dr)
-        ξr = rand(T,s)
+        ξr = (A' - I(s)*λ) * rand(T,s)
         function f(ξr)
             ξr = reshape(ξr,size(xr))
             reshape(fl(ξr),:,1)
         end
-        b = (I(s) - l*r')*dr
-        ξr,_ = linsolve(ξr->f(ξr), b, ξr, -λ, 1; kwargs...)
-        ξr -= (r'*ξr) .* l
-        # println("test= ",norm((A' - I(s) .* λ) * ξr - ((I(s) - l*r')*dr)))
-        # println("orth2  ",r'*ξr)
-        # dA = dλ.*l*r' - l*ξl' - ξr*r'
-        dA = (dλ.*l - ξr) *r'
+        ξr,info = linsolve(ξr->f(ξr), dr, ξr, -λ, 1; kwargs...)
+        # @show info r'*ξr
+        dA = (- ξr) *r'
         return NO_FIELDS, dA, NO_FIELDS, NO_FIELDS, NO_FIELDS
     end
     return (λ,r), back

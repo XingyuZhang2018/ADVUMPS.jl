@@ -93,8 +93,8 @@ end
 function vumpstep(rt::VUMPSRuntime,err,tol)
     M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     _, AL, C, AR, = ACCtoALAR(AL, C, AR, M, FL, FR; tol = tol/10)
-    _, FL = leftenv(AL, M; tol = tol/10)
-    _, FR = rightenv(AR, M; tol = tol/10)
+    _, FL = leftenv(AL, M, FL; tol = tol/10)
+    _, FR = rightenv(AR, M, FR; tol = tol/10)
     err = error(AL,C,FL,M,FR)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err, tol
 end
