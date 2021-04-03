@@ -1,5 +1,5 @@
 using ADVUMPS
-using ADVUMPS:eig,leftorth,lefteig,righteig,qrpos,lqpos,num_grad,Ising
+using ADVUMPS:qrpos,lqpos,num_grad,Ising
 using Test
 using Zygote
 using KrylovKit

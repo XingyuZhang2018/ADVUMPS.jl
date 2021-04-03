@@ -140,6 +140,12 @@ end
 Given an MPS tensor `A`, return a left-canonical MPS tensor `AL`, a gauge transform `C` and
 a scalar factor `λ` such that ``λ AL^s C = C A^s``, where an initial guess for `C` can be
 provided.
+```
+    ┌─AL─      ┌──      
+    │ │     =  │                 
+    ┕─AL─      ┕──    
+```
+
 """
 function leftorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
     λ2s, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
@@ -186,8 +192,13 @@ end
     rightorth(A, [C]; kwargs...)
 
 Given an MPS tensor `A`, return a gauge transform C, a right-canonical MPS tensor `AR`, and
-a scalar factor `λ` such that ``λ C AR^s = A^s C``, where an initial guess for `C` can be
+a scalar factor `λ` such that `λ C AR^s = A^s C`, where an initial guess for `C` can be
 provided.
+````
+    ─ AR─┐     ──┐  
+    │  │  =    │  
+    ─ AR─┘     ──┘  
+````
 """
 function rightorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, kwargs...)
     AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol, kwargs...)
@@ -197,8 +208,8 @@ end
 """
     leftenv(A, M, FL; kwargs)
 
-Compute the left environment tensor for MPS A and MPO M, by finding the left fixed point
-of AL - M - conj(AL) contracted along the physical dimension.
+Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
+of `AL - M - conj(AL)` contracted along the physical dimension.
 ```
 ┌── AL─       ┌──         
 │   │         │             
@@ -214,8 +225,8 @@ end
 """
     rightenv(A, M, FR; kwargs...)
 
-Compute the right environment tensor for MPS A and MPO M, by finding the right fixed point
-of AR - M - conj(AR) contracted along the physical dimension.
+Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
+of `AR - M - conj(AR)`` contracted along the physical dimension.
 ```
  ─ AR──┐         ──┐   
    │   │           │   
@@ -229,17 +240,46 @@ function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1
     return real(λs[1]), real(FRs[1])
 end
 
-
+"""
+Compute the up environment tensor for MPS `FL`,`FR` and MPO `M`, by finding the up fixed point
+    of `FL - M - FR` contracted along the physical dimension.
+````
+┌── AC──┐         
+│   │   │           ┌── AC──┐ 
+FL─ M ──FR  =  λAC  │   │   │ 
+│   │   │         
+        
+````
+"""
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
     return real(λs[1]), real(ACs[1])
 end
 
+"""
+Compute the up environment tensor for MPS `FL` and `FR`, by finding the up fixed point
+    of `FL - FR` contracted along the physical dimension.
+````
+┌──C──┐         
+│     │          ┌──C──┐ 
+FL─── FR  =  λC  │     │ 
+│     │         
+        
+````
+"""
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
     return real(λs[1]), real(Cs[1])
 end
 
+"""
+QR factorization to get `AL` and `AR` from `AC` and `C`
+
+````
+──AL──C──  =  ──AC──  = ──C──AR──
+  │             │            │   
+````
+"""
 function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
     D, d, = size(AL)
     AC = ein"asc,cb -> asb"(AL,C)
@@ -260,6 +300,25 @@ function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
     return λ, AL, C, AR, errL, errR
 end
 
+"""
+Compute the error through all environment `AL,C,FL,M,FR`
+
+````
+        ┌── AC──┐         
+        │   │   │           ┌── AC──┐ 
+MAC1 =  FL─ M ──FR  =  λAC  │   │   │ 
+        │   │   │         
+
+        ┌── AC──┐         
+        │   │   │           ┌──C──┐ 
+MAC2 =  FL─ M ──FR  =  λAC  │     │ 
+        │   │   │         
+        ┕── AL─     
+        
+── MAC1 ──    ≈    ── AL ── MAC2 ── 
+    │                 │
+````
+"""
 function error(AL,C,FL,M,FR)
     AC = ein"asc,cb -> asb"(AL,C)
     MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
