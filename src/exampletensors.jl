@@ -74,13 +74,13 @@ function vumps_env(model::MT, β, D) where {MT <: HamiltonianModel}
     M = model_tensor(model, β)
     mkpath("./data/")
     chkp_file = "./data/$(model)_β$(β)_D$(D).jld2"
-    if isfile(chkp_file)                               # if backward go to this way will make mistake!!!
+    if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, D)   
     else
         rt = SquareVUMPSRuntime(M, Val(:random), D)
     end
     env = vumps(rt; tol=1e-10, maxit=100)
-    # save(chkp_file, "env", env)
+    # save(chkp_file, "env", env) # if backward go to this way will make mistake!!!
     return env
 end
 
