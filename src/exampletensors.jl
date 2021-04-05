@@ -1,3 +1,6 @@
+using JLD2
+using FileIO
+
 # tensor for classical 2-d model
 const isingβc = log(1+sqrt(2))/2
 
@@ -61,38 +64,48 @@ function energy_tensor(::Ising, β)
 end
 
 """
-    Z(model<:HamiltonianModel, β, χ)
+    vumps_env(model<:HamiltonianModel, β, D)
 
-return the partition function of the `model` as a function of the inverse
-temperature `β` and the environment bonddimension `χ` as calculated with
-ctmrg. Requires that `model_tensor` are defined for `model`.
+return the vumps environment of the `model` as a function of the inverse
+temperature `β` and the environment bonddimension `D` as calculated with
+vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function Z(model::MT, β, χ) where {MT <: HamiltonianModel}
+function vumps_env(model::MT, β, D) where {MT <: HamiltonianModel}
     M = model_tensor(model, β)
-    rt = SquareVUMPSRuntime(M, Val(:random), χ)
+    mkpath("./data/")
+    chkp_file = "./data/$(model)_β$(β)_D$(D).jld2"
+    if isfile(chkp_file)                               # if backward go to this way will make mistake!!!
+        rt = SquareVUMPSRuntime(M, chkp_file, D)   
+    else
+        rt = SquareVUMPSRuntime(M, Val(:random), D)
+    end
     env = vumps(rt; tol=1e-10, maxit=100)
-    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
+    # save(chkp_file, "env", env)
+    return env
+end
 
+
+"""
+    Z(env::SquareVUMPSRuntime)
+
+return the partition function of the `env`.
+"""
+function Z(env::SquareVUMPSRuntime)
+    M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     AC = ein"asc,cb -> asb"(AL,C)
     z = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
     λ = ein"αcβ,βη,ηcγ,αγ ->"(FL,C,FR,conj(C))[]
-
     return z/λ
 end
 
 """
-    magnetisation(model<:HamiltonianModel, β, χ)
+    magnetisation(env::SquareVUMPSRuntime, model::MT, β)
 
-return the magnetisation of the `model` as a function of the inverse
-temperature `β` and the environment bonddimension `χ` as calculated with
-ctmrg. Requires that `mag_tensor` and `model_tensor` are defined for `model`.
+return the magnetisation of the `model`. Requires that `mag_tensor` are defined for `model`.
 """
-function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
-    M = model_tensor(model, β)
+function magnetisation(env::SquareVUMPSRuntime, model::MT, β) where {MT <: HamiltonianModel}
+    M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Mag = mag_tensor(model, β)
-    rt = SquareVUMPSRuntime(M, Val(:random), χ)
-    env = vumps(rt; tol=1e-10, maxit=100)
-    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
     AC = ein"asc,cb -> asb"(AL,C)
     mag = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Mag,FR,conj(AC))[]
     λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
@@ -101,19 +114,15 @@ function magnetisation(model::MT, β, χ) where {MT <: HamiltonianModel}
 end
 
 """
-    energy(model<:HamiltonianModel, β, χ)
+    energy(env::SquareVUMPSRuntime, model::MT, β)
 
 return the energy of the `model` as a function of the inverse
-temperature `β` and the environment bonddimension `χ` as calculated with
-ctmrg. Requires that `energy_tensor` and `model_tensor` are defined for `model`.
+temperature `β` and the environment bonddimension `D` as calculated with
+vumps. Requires that `model_tensor` are defined for `model`.
 """
-function energy(model::MT, β, χ) where {MT <: HamiltonianModel}
-    M = model_tensor(model, β)
+function energy(env::SquareVUMPSRuntime, model::MT, β) where {MT <: HamiltonianModel}
+    M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Ene = energy_tensor(model, β)
-    rt = SquareVUMPSRuntime(M, Val(:random), χ)
-    env = vumps(rt; tol=1e-10, maxit=100)
-    AL,C,FL,FR = env.AL,env.C,env.FL,env.FR
-
     AC = ein"asc,cb -> asb"(AL,C)
     energy = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Ene,FR,conj(AC))[]
     λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]

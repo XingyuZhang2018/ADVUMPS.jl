@@ -3,8 +3,11 @@ using LinearAlgebra
 using KrylovKit
 
 @Zygote.nograd StopFunction
-@Zygote.nograd leftorth
-@Zygote.nograd rightorth
+# @Zygote.nograd leftorth
+# @Zygote.nograd rightorth
+@Zygote.nograd _initializect_square
+@Zygote.nograd printstyled
+
 # patch since it's currently broken otherwise
 # @Zygote.adjoint function Base.typed_hvcat(::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
 #     Base.typed_hvcat(T,rows, xs...), ȳ -> (nothing, nothing, permutedims(ȳ)...)

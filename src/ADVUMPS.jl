@@ -3,7 +3,7 @@ module ADVUMPS
 using Zygote
 using OMEinsum
 
-export vumps
+export vumps, vumps_env
 export Z,magnetisation,energy
 export hamiltonian,model_tensor,mag_tensor
 export Ising

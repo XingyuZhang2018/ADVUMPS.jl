@@ -66,7 +66,7 @@ julia> size(rt.C) == (4,4)
 true
 ```
 "
-function SquareVUMPSRuntime(M::AbstractArray{T,4}, env::Val, D::Int) where T
+function SquareVUMPSRuntime(M::AbstractArray{T,4}, env, D::Int) where T
     return SquareVUMPSRuntime(M, _initializect_square(M, env, D)...)
 end
 
@@ -77,7 +77,14 @@ function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) 
     C, AR = rightorth(AL)
     _, FL = leftenv(AL, M)
     _, FR = rightenv(AR, M)
+    print("random initial -> ")
     AL,C,AR,FL,FR
+end
+
+function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int) where T
+    env = load(chkp_file)["env"]
+    print("load from: $(chkp_file) -> ")   
+    AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
 end
 
 function vumps(rt::VUMPSRuntime; tol::Real, maxit::Integer)
@@ -86,7 +93,7 @@ function vumps(rt::VUMPSRuntime; tol::Real, maxit::Integer)
 
     stopfun = StopFunction(olderror, -1, tol, maxit)
     rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror, tol), stopfun)
-    # @show err
+    println("vumps done@step: $(stopfun.counter), error=$(err)")
     return rt
 end
 
@@ -196,7 +203,7 @@ a scalar factor `λ` such that `λ C AR^s = A^s C`, where an initial guess for `
 provided.
 ````
     ─ AR─┐     ──┐  
-    │  │  =    │  
+      │  │  =    │  
     ─ AR─┘     ──┘  
 ````
 """
