@@ -77,13 +77,13 @@ function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) 
     C, AR = rightorth(AL)
     _, FL = leftenv(AL, M)
     _, FR = rightenv(AR, M)
-    print("random initial -> ")
+    # print("random initial -> ")
     AL,C,AR,FL,FR
 end
 
 function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int) where T
     env = load(chkp_file)["env"]
-    print("load from: $(chkp_file) -> ")   
+    print("load from $(chkp_file) -> ")   
     AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
 end
 

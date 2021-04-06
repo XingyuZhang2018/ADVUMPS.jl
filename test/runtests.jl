@@ -21,4 +21,9 @@ using Test
         println("vumps tests running...")
         include("vumps.jl")
     end
+
+    @testset "variationalipeps" begin
+        println("variationalipeps tests running...")
+        include("variationalipeps.jl")
+    end
 end
