@@ -38,6 +38,33 @@ using LinearAlgebra: svd, norm
     @test isapprox(e, minimum(hdiag), atol=1e-3)
 end
 
+@testset "gradient" begin
+    Random.seed!(0)
+    h = hamiltonian(Heisenberg())
+    ipeps = SquareIPEPS(rand(2,2,2,2,2))
+    a = indexperm_symmetrize(ipeps)
+    gradzygote = first(Zygote.gradient(a) do x
+        energy(h,x; χ=4, tol=1e-10, maxit=20)
+    end).bulk
+    gradnum = num_grad(a.bulk, δ=1e-3) do x
+        energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxit=20)
+    end
+
+    @test isapprox(gradzygote, gradnum, atol=1e-3)
+
+    h = hamiltonian(TFIsing(1.0))
+    ipeps = SquareIPEPS(rand(2,2,2,2,2))
+    a = indexperm_symmetrize(ipeps)
+    gradzygote = first(Zygote.gradient(a) do x
+        energy(h,x; χ=4, tol=1e-10, maxit=20)
+    end).bulk
+    gradnum = num_grad(a.bulk, δ=1e-3) do x
+        energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxit=20)
+    end
+
+    @test isapprox(gradzygote, gradnum, atol=1e-3)
+end
+
 @testset "TFIsing" begin
     Random.seed!(3)
     h = zeros(2,2,2,2)
@@ -75,7 +102,7 @@ end
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
     res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
-        optimargs = (Optim.Options(f_tol=1e-3, show_trace=true),))
+        optimargs = (Optim.Options(f_tol=1e-3, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.0312, atol = 1e-2)
 
@@ -83,7 +110,7 @@ end
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
     res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
-        optimargs = (Optim.Options(f_tol=1e-1, show_trace=true),))
+        optimargs = (Optim.Options(f_tol=1e-1, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.5113, atol = 1e-2)
 end
@@ -91,42 +118,69 @@ end
 @testset "heisenberg" begin
     # comparison with results from https://github.com/wangleiphy/tensorgrad
     Random.seed!(3)
-    # h = hamiltonian(Heisenberg())
-    # ipeps = SquareIPEPS(randn(2,2,2,2,2))
-    # a = indexperm_symmetrize(ipeps)
-    # res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
-    #     optimargs = (Optim.Options(f_tol=1e-6, show_trace=true),))
-    # e = minimum(res)
-    # @test isapprox(e, -0.66023, atol = 1e-4)
+    h = hamiltonian(Heisenberg())
+    ipeps = SquareIPEPS(rand(2,2,2,2,2))
+    a = indexperm_symmetrize(ipeps)
+    res = optimiseipeps(a, h; χ=4, tol=1e-10, maxit=20,
+        optimargs = (Optim.Options(f_tol=1e-6, show_trace=false),))
+    e = minimum(res)
+    @test isapprox(e, -0.66023, atol = 1e-4)
 
-    # h = hamiltonian(Heisenberg(2.0, 2.0, 1.0))
-    # ipeps = SquareIPEPS(randn(2,2,2,2,2))
-    # a = indexperm_symmetrize(ipeps)
-    # res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
-    #     optimargs = (Optim.Options(f_tol = 1e-6, show_trace = true),))
-    # e = minimum(res)
-    # @test isapprox(e, -1.190, atol = 1e-2)
+    h = hamiltonian(Heisenberg(2.0, 2.0, 1.0))
+    ipeps = SquareIPEPS(rand(2,2,2,2,2))
+    a = indexperm_symmetrize(ipeps)
+    res = optimiseipeps(a, h; χ=5, tol=1e-10, maxit=20,
+        optimargs = (Optim.Options(f_tol = 1e-5, show_trace = false),))
+    e = minimum(res)
+    @test isapprox(e, -1.190, atol = 1e-2)
 
     h = hamiltonian(Heisenberg(0.5, 0.5, 2.0))
-    ipeps = SquareIPEPS(randn(2,2,2,2,2))
+    ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
+    res = optimiseipeps(a, h; χ=5, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol = 1e-6, show_trace = true),))
     e = minimum(res)
     @test isapprox(e, -1.0208, atol = 1e-3)
 end
 
-@testset "gradient" begin
-    Random.seed!(0)
+@testset "complex" begin
+    Random.seed!(2)
     h = hamiltonian(Heisenberg())
     ipeps = SquareIPEPS(randn(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    gradzygote = first(Zygote.gradient(a) do x
-        energy(h,x; χ=2, tol=1e-10, maxit=100)
-    end).bulk
-    gradnum = num_grad(a.bulk, δ=1e-3) do x
-        energy(h, SquareIPEPS(x); χ=2, tol=1e-10, maxit=100)
-    end
+    ca = SquareIPEPS(a.bulk .+ 0im)
+    @show energy(h,ca; χ=4, tol=1e-10, maxit=20)
+    # @test energy(h,a; χ=4, tol=1e-10, maxit=20) ≈ energy(h,ca; χ=4, tol=1e-10, maxit=20)
+    # ϕ = exp(1im * rand()* 2π)
+    # ca = SquareIPEPS(a.bulk .* ϕ)
+    # @test energy(h,ca; χ=4, tol=1e-12, maxit=100) ≈ energy(h,a; χ=4, tol=1e-12, maxit=100)
 
-    @test isapprox(norm(gradzygote-gradnum), 0, atol=1e-3)
+    # gradzygote = first(Zygote.gradient(a) do x
+    #     real(energy(h,x; χ=4, tol=1e-12,maxit=100))
+    # end)
+
+    # ca = SquareIPEPS(a.bulk .+ 0im)
+    # @test gradzygote.bulk ≈ first(Zygote.gradient(ca) do x
+    #     real(energy(h,x; χ=4, tol=1e-12,maxit=100))
+    # end).bulk
+
+    # Random.seed!(2)
+    # # real
+    # h = hamiltonian(Heisenberg())
+    # ipeps = SquareIPEPS(randn(2,2,2,2,2))
+    # a = indexperm_symmetrize(ipeps)
+    # res1 = optimiseipeps(a, h; χ=20, tol=1e-12, maxit=100,
+    #     optimargs = (Optim.Options(f_tol=1e-6, store_trace = true, show_trace=false),));
+
+    # # complex
+    # ipeps = SquareIPEPS(randn(2,2,2,2,2) .+ randn(2,2,2,2,2) .* 1im)
+    # a = indexperm_symmetrize(ipeps)
+    # res2 = optimiseipeps(a, h; χ=20, tol=1e-12, maxit=100,
+    #     optimargs = (Optim.Options(f_tol=1e-6,store_trace = true,  show_trace=false, allow_f_increases=true),),
+    #     optimmethod = Optim.LBFGS(
+    #         m = 10,
+    #         alphaguess = LineSearches.InitialStatic(alpha=1, scaled=true),
+    #         linesearch = LineSearches.Static())
+    #     );
+    # @test isapprox(minimum(res1), minimum(res2), atol = 1e-3)
 end

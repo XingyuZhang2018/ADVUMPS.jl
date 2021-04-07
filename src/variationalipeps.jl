@@ -35,7 +35,7 @@ function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxit::
     # else
     #     rt = SquareVUMPSRuntime(M, Val(:random), D)
     # end
-    rt = SquareVUMPSRuntime(a, Val(:random), D)
+    rt = SquareVUMPSRuntime(a, Val(:random), χ)
     env = vumps(rt; tol=tol, maxit=maxit)
     e = expectationvalue(h, ap, env)
     return e
