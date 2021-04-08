@@ -1,10 +1,9 @@
 # ADVUMPS.jl
 
-[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
+[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
 
 [![Coverage](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl/branch/dev/graph/badge.svg)](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl)
 
-[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
 
 This is a julia package to realise Automatic Differential(AD) for Variational Uniform Matrix product states(VUMPS). 
 
