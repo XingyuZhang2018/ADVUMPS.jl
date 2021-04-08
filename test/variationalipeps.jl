@@ -32,7 +32,7 @@ using LinearAlgebra: svd, norm
     hdiag = [0.3,0.1,-0.43]
     h = diaglocalhamiltonian(hdiag)
     a = SquareIPEPS(randn(2,2,2,2,3))
-    res = optimiseipeps(a, h; χ=4, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=4, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-6, show_trace=false),))
     e = minimum(res)/2
     @test isapprox(e, minimum(hdiag), atol=1e-3)
@@ -143,13 +143,13 @@ end
     @test isapprox(e, -1.0208, atol = 1e-3)
 end
 
-@testset "complex" begin
-    Random.seed!(2)
-    h = hamiltonian(Heisenberg())
-    ipeps = SquareIPEPS(randn(2,2,2,2,2))
-    a = indexperm_symmetrize(ipeps)
-    ca = SquareIPEPS(a.bulk .+ 0im)
-    @show energy(h,ca; χ=4, tol=1e-10, maxit=20)
+# @testset "complex" begin
+    # Random.seed!(2)
+    # h = hamiltonian(Heisenberg())
+    # ipeps = SquareIPEPS(randn(2,2,2,2,2))
+    # a = indexperm_symmetrize(ipeps)
+    # ca = SquareIPEPS(a.bulk .+ 0im)
+    # @show energy(h,ca; χ=4, tol=1e-10, maxit=20)
     # @test energy(h,a; χ=4, tol=1e-10, maxit=20) ≈ energy(h,ca; χ=4, tol=1e-10, maxit=20)
     # ϕ = exp(1im * rand()* 2π)
     # ca = SquareIPEPS(a.bulk .* ϕ)
@@ -183,4 +183,4 @@ end
     #         linesearch = LineSearches.Static())
     #     );
     # @test isapprox(minimum(res1), minimum(res2), atol = 1e-3)
-end
+# end

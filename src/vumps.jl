@@ -77,7 +77,7 @@ function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) 
     C, AR = rightorth(AL)
     _, FL = leftenv(AL, M)
     _, FR = rightenv(AR, M)
-    # print("random initial -> ")
+    print("random initial -> ")
     AL,C,AR,FL,FR
 end
 
