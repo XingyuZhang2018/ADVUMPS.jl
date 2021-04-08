@@ -110,7 +110,7 @@ end
     h = hamiltonian(TFIsing(2.0))
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
+    res = optimiseipeps(a, h; χ=4, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-1, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.5113, atol = 1e-2)
