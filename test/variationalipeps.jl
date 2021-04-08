@@ -6,22 +6,23 @@ using Optim, LineSearches
 using LinearAlgebra: svd, norm
 
 @testset "non-interacting" begin
+    Random.seed!(100)
     h = diaglocalhamiltonian([1,-1.0])
     as = (rand(3,3,3,3,2) for _ in 1:10)
-    @test all(a -> -1 < energy(h,SquareIPEPS(a); χ=5, tol=0.0, maxit=10)/2 < 1, as)
+    @test all(a -> -1 < energy(h,SquareIPEPS(a); χ=5, tol=1e-10, maxit=10)/2 < 1, as)
 
     h = diaglocalhamiltonian([1,-1.0])
     a = zeros(2,2,2,2,2) .+ 1e-12 * randn(2,2,2,2,2)
     a[1,1,1,1,2] = randn()
-    @test energy(h,SquareIPEPS(a); χ=4, tol=0, maxit=10)/2 ≈ -1
+    @test energy(h,SquareIPEPS(a); χ=4, tol=1e-10, maxit=10)/2 ≈ -1
 
     a = zeros(2,2,2,2,2) .+ 1e-12 * randn(2,2,2,2,2)
     a[1,1,1,1,1] = randn()
-    @test energy(h,SquareIPEPS(a); χ=4, tol=0, maxit=10)/2 ≈ 1
+    @test energy(h,SquareIPEPS(a); χ=4, tol=1e-10, maxit=10)/2 ≈ 1
 
     a = zeros(2,2,2,2,2) .+ 1e-12 * randn(2,2,2,2,2)
     a[1,1,1,1,2] = a[1,1,1,1,1] = randn()
-    @test abs(energy(h,SquareIPEPS(a); χ=4, tol=0, maxit=10)) < 1e-9
+    @test abs(energy(h,SquareIPEPS(a); χ=4, tol=1e-10, maxit=10)) < 1e-9
 
     grad = let energy = x -> real(energy(h, SquareIPEPS(x); χ=8, tol=1e-10, maxit=1))
         res = optimize(energy,
@@ -72,7 +73,7 @@ end
     h[2,2,2,2] = h[1,1,1,1] = -1
     ipeps = SquareIPEPS(randn(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-6, show_trace=false),))
     e = minimum(res)
     @test isapprox(e,-1, atol=1e-3)
@@ -84,7 +85,7 @@ end
     h = ein"(((abcd,ai),bj),ck),dl -> ijkl"(h,randu,randu',randu,randu')
     ipeps = SquareIPEPS(randn(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=3, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=3, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-6, show_trace=false),))
     e = minimum(res)
     @test isapprox(e,-1, atol=1e-3)
@@ -93,7 +94,7 @@ end
     h = hamiltonian(TFIsing(1.0))
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-3, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.12566, atol = 1e-2)
@@ -101,7 +102,7 @@ end
     h = hamiltonian(TFIsing(0.5))
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-3, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.0312, atol = 1e-2)
@@ -109,7 +110,7 @@ end
     h = hamiltonian(TFIsing(2.0))
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
-    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=100,
+    res = optimiseipeps(a, h; χ=2, tol=1e-10, maxit=20,
         optimargs = (Optim.Options(f_tol=1e-1, show_trace=false),))
     e = minimum(res)
     @test isapprox(e, -2.5113, atol = 1e-2)
@@ -134,11 +135,12 @@ end
     e = minimum(res)
     @test isapprox(e, -1.190, atol = 1e-2)
 
+    Random.seed!(3)
     h = hamiltonian(Heisenberg(0.5, 0.5, 2.0))
     ipeps = SquareIPEPS(rand(2,2,2,2,2))
     a = indexperm_symmetrize(ipeps)
     res = optimiseipeps(a, h; χ=5, tol=1e-10, maxit=20,
-        optimargs = (Optim.Options(f_tol = 1e-6, show_trace = true),))
+        optimargs = (Optim.Options(f_tol = 1e-6, show_trace = false),))
     e = minimum(res)
     @test isapprox(e, -1.0208, atol = 1e-3)
 end

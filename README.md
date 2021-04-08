@@ -1,4 +1,8 @@
-# ADVUMPS
+# ADVUMPS.jl
+
+[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
+
+[![Coverage](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl/branch/dev/graph/badge.svg)](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl)
 
 This is a julia package to realise Automatic Differential(AD) for Variational Uniform Matrix product states(VUMPS). 
 
@@ -83,6 +87,7 @@ With Zygote, this is straightforward to calculate:
 
 julia> e = β -> -log(Z(vumps_env(Ising(),β,2)))
 #1 (generic function with 1 method)
+
 julia> using Zygote
 
 julia> Zygote.gradient(e,0.5)[1]
@@ -91,7 +96,7 @@ random initial -> vumps done@step: 12, error=4.676523961729668e-11
 ```
 more result is ploted by `/plot/2Dising.jl`
 
-<div align="center"><img src="./plot/2Disingmag.svg" width="120px" alt="2Disingmag" div><img src="./plot/2Disingdmag.svg" width="120px" alt="2Disingmag" div><img src="./plot/2Disingene.svg" width="120px" alt="2Disingmag" div></div>
+<div align="center"><img src="./plot/2Disingmag.svg" width="300px" alt="2Disingmag" div><img src="./plot/2Disingdmag.svg" width="300px" alt="2Disingmag" div><img src="./plot/2Disingene.svg" width="300px" alt="2Disingmag" div></div>
 
 ### Finding the Ground State of infinite 2D Heisenberg model
 

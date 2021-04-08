@@ -73,7 +73,7 @@ end
         λL,FL = leftenv(AL, M)
         return ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)[]/ein"γcη,ηcγ -> "(FL,FL)[]
     end 
-    @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-10)
+    @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-9)
 end
 
 @testset "rightenv" begin
@@ -96,7 +96,7 @@ end
         λL,FR = rightenv(AR, M)
         return ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)[]/ein"γcη,ηcγ -> "(FR,FR)[]
     end
-    @test isapprox(Zygote.gradient(foo3, 1)[1],num_grad(foo3, 1), atol = 1e-10)
+    @test isapprox(Zygote.gradient(foo3, 1)[1],num_grad(foo3, 1), atol = 1e-9)
 end
 
 @testset "vumps unit test" begin
