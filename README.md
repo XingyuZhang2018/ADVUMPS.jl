@@ -1,5 +1,7 @@
 # ADVUMPS
 
+[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
+
 This is a julia package to realise Automatic Differential(AD) for Variational Uniform Matrix product states(VUMPS). 
 
 In this package we implemented the algorithms described in [Differentiable Programming Tensor Networks](https://arxiv.org/abs/1903.09650), but in another contraction method namely VUMPS.
