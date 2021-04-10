@@ -100,7 +100,7 @@ end
 
     Random.seed!(3)
     h = hamiltonian(TFIsing(2.0))
-    ipeps, key = init_ipeps(TFIsing(2.0); D=2, χ=4, tol=1e-10, maxiter=20)
+    ipeps, key = init_ipeps(TFIsing(0.5); D=2, χ=4, tol=1e-10, maxiter=20)
     res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
     e = minimum(res)
     @test isapprox(e, -2.5113, atol = 1e-2)
