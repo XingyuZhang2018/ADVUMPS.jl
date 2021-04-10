@@ -7,7 +7,7 @@ export vumps, vumps_env
 export Z,magnetisation, energy
 export hamiltonian, model_tensor, mag_tensor
 export Ising, TFIsing, Heisenberg
-export optimiseipeps
+export init_ipeps, optimiseipeps
 
 include("hamiltonianmodels.jl")
 include("vumps.jl")

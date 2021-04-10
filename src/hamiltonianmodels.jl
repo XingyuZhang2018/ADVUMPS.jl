@@ -12,6 +12,8 @@ return the hamiltonian of the `model` as a two-site tensor operator.
 "
 function hamiltonian end
 
+struct diaglocal <: HamiltonianModel end
+
 struct Ising <: HamiltonianModel end
 
 @doc raw"
@@ -55,7 +57,7 @@ Heisenberg() = Heisenberg(1.0,1.0,1.0)
 return the heisenberg hamiltonian for the `model` as a two-site operator.
 """
 function hamiltonian(model::Heisenberg)
-    h = model.Jz * ein"ij,kl -> ijkl"(σz,σz) -
+    h = model.Jz * ein"ij,kl -> ijkl"(σz, σz) -
         model.Jx * ein"ij,kl -> ijkl"(σx, σx) -
         model.Jy * ein"ij,kl -> ijkl"(σy, σy)
     h = ein"ijcd,kc,ld -> ijkl"(h,σx,σx')

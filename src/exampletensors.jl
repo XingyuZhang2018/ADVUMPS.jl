@@ -79,7 +79,7 @@ function vumps_env(model::MT, β, D) where {MT <: HamiltonianModel}
     else
         rt = SquareVUMPSRuntime(M, Val(:random), D)
     end
-    env = vumps(rt; tol=1e-10, maxit=100)
+    env = vumps(rt; tol=1e-10, maxiter=100)
     # save(chkp_file, "env", env) # if backward go to this way will make mistake!!!
     return env
 end

@@ -35,7 +35,5 @@ function indexperm_symmetrize(ipeps::SquareIPEPS)
     x += permutedims(x, (3,2,1,4,5)) # up-down
     x += permutedims(x, (2,1,4,3,5)) # diagonal
     x += permutedims(x, (4,3,2,1,5)) # rotation
-    # x += permutedims(x, (1,4,3,2,5)) # up-down
-    # x /= 4
     return SquareIPEPS(x / norm(x))
 end

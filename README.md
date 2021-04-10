@@ -4,8 +4,6 @@
 
 [![Coverage](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl/branch/dev/graph/badge.svg)](https://codecov.io/gh/XingyuZhang2018/ADVUMPS.jl)
 
-[![Build Status](https://travis-ci.com/XingyuZhang2018/ADVUMPS.svg?branch=dev)](https://travis-ci.com/XingyuZhang2018/ADVUMPS.jl)
-
 This is a julia package to realise Automatic Differential(AD) for Variational Uniform Matrix product states(VUMPS). 
 
 In this package we implemented the algorithms described in [Differentiable Programming Tensor Networks](https://arxiv.org/abs/1903.09650), but in another contraction method namely VUMPS.
@@ -127,136 +125,137 @@ julia> h = hamiltonian(Heisenberg())
 where we get the `Heisenberg`-hamiltonian with default parameters `Jx = Jy = Jz = 1.0`.
 Next we initialize an ipeps-tensor and calculate the energy of that tensor and the hamiltonian:
 ```julia
-julia> ipeps = SquareIPEPS(rand(2,2,2,2,2));
+julia> ipeps, key = init_ipeps(Heisenberg(); D=2, χ=4, tol=1e-10, maxiter=20);
+random initial iPEPS
 
-julia> ipeps = ADVUMPS.indexperm_symmetrize(ipeps);
-
-julia> ADVUMPS.energy(h,ipeps, χ=4, tol=1e-6,maxit=20)
-random initial -> vumps done@step: 2, error=6.27524507817513e-9
--0.5085713947063569
+julia> ADVUMPS.energy(h, ipeps, χ=4, tol=1e-6, maxiter=20)
+random initial vumps environment-> vumps done@step: 21, error=6.787978724709051e-6
+-0.506219066603934
 ```
 where the initial energy is random.
 
-To minimise it, we combine `Optim` and `Zygote` under the hood to provide the `optimiseipeps` function.
+To minimise it, we combine `Optim` and `Zygote` under the hood to provide the `optimiseipeps` function. The `key` is used to save `.log` file and finial `ipeps` `.jld2` file.
 ```julia
 julia> using Optim
 
-julia> res = optimiseipeps(ipeps, h; χ=4, tol=1e-6, maxit=20,
-                      optimargs = (Optim.Options(f_tol=1e-6, show_trace=true),));
-random initial -> vumps done@step: 2, error=5.932061250059548e-9
-random initial -> vumps done@step: 2, error=2.022505856713312e-9
-Iter     Function value   Gradient norm 
-     0    -5.085714e-01     6.099997e-02
- * time: 0.0
-random initial -> vumps done@step: 2, error=4.52244313510551e-8
-random initial -> vumps done@step: 2, error=3.511023537714646e-8
-random initial -> vumps done@step: 3, error=2.0284469254437323e-7
-random initial -> vumps done@step: 3, error=1.4716273360000774e-7
-random initial -> vumps done@step: 3, error=9.593628522795993e-8
-random initial -> vumps done@step: 3, error=3.796127248639449e-8
-     1    -6.503229e-01     7.509995e-02
- * time: 1.4280002117156982
-random initial -> vumps done@step: 4, error=2.1152357602901073e-7
-random initial -> vumps done@step: 4, error=7.015830531044039e-8
-random initial -> vumps done@step: 3, error=8.022106942289034e-8
-random initial -> vumps done@step: 3, error=8.496580545351456e-8
-     2    -6.582497e-01     8.913537e-03
- * time: 1.880000114440918
-random initial -> vumps done@step: 3, error=9.44635875771351e-8
-random initial -> vumps done@step: 3, error=6.764041739661678e-7
-random initial -> vumps done@step: 3, error=2.43068917446062e-7
-random initial -> vumps done@step: 4, error=2.0027949072605566e-8
-random initial -> vumps done@step: 3, error=2.309852948441025e-7
-random initial -> vumps done@step: 3, error=2.239364706295199e-7
-     3    -6.586733e-01     1.915860e-02
- * time: 2.509000062942505
-random initial -> vumps done@step: 3, error=1.6655328377726225e-7
-random initial -> vumps done@step: 3, error=1.4492548980404085e-7
-random initial -> vumps done@step: 3, error=3.911268768912821e-8
-random initial -> vumps done@step: 3, error=3.009603348277458e-7
-random initial -> vumps done@step: 3, error=1.799590487630004e-7
-random initial -> vumps done@step: 3, error=8.5636102238974e-8
-     4    -6.596982e-01     5.175987e-03
- * time: 3.128000020980835
-random initial -> vumps done@step: 3, error=2.1413458365186302e-8
-random initial -> vumps done@step: 3, error=1.3002714391992936e-7
-random initial -> vumps done@step: 3, error=1.0312123492155217e-7
-random initial -> vumps done@step: 3, error=9.935514996707667e-8
-     5    -6.597726e-01     6.784199e-03
- * time: 3.5440001487731934
-random initial -> vumps done@step: 4, error=1.915184058568321e-8
-random initial -> vumps done@step: 3, error=1.3162312424862742e-7
-random initial -> vumps done@step: 3, error=1.4392184658493842e-8
-random initial -> vumps done@step: 3, error=1.1862937069190404e-7
-random initial -> vumps done@step: 3, error=9.787483969427185e-8
-random initial -> vumps done@step: 3, error=1.9317236128447688e-7
-     6    -6.599181e-01     7.809312e-03
- * time: 4.182000160217285
-random initial -> vumps done@step: 3, error=3.15660813772062e-8
-random initial -> vumps done@step: 3, error=1.951174832536094e-8
-random initial -> vumps done@step: 3, error=3.0578525850776337e-7
-random initial -> vumps done@step: 3, error=1.9269067746273535e-7
-random initial -> vumps done@step: 3, error=8.730911196439428e-8
-random initial -> vumps done@step: 3, error=7.590004434192511e-8
-     7    -6.601239e-01     2.521885e-03
- * time: 4.808000087738037
-random initial -> vumps done@step: 3, error=8.098518662100826e-8
-random initial -> vumps done@step: 3, error=5.337379647462432e-7
-random initial -> vumps done@step: 3, error=6.26108823454905e-8
-random initial -> vumps done@step: 3, error=3.809274705545814e-7
-random initial -> vumps done@step: 3, error=2.542028733719036e-7
-random initial -> vumps done@step: 3, error=3.971765905109794e-8
-     8    -6.601608e-01     6.511008e-04
- * time: 5.424000024795532
-random initial -> vumps done@step: 3, error=2.75081615517135e-8
-random initial -> vumps done@step: 3, error=1.423437221509443e-8
-random initial -> vumps done@step: 3, error=3.247063768880895e-7
-random initial -> vumps done@step: 3, error=1.9243884768549126e-7
-random initial -> vumps done@step: 3, error=3.045285385840119e-8
-random initial -> vumps done@step: 3, error=1.612849287178833e-7
-     9    -6.601807e-01     1.156388e-03
- * time: 6.041000127792358
-random initial -> vumps done@step: 3, error=1.7985185077555728e-8
-random initial -> vumps done@step: 3, error=1.0074368737552882e-7
-random initial -> vumps done@step: 3, error=4.133804593003857e-8
-random initial -> vumps done@step: 3, error=1.9941662828969343e-8
-random initial -> vumps done@step: 3, error=1.043322374394592e-8
-random initial -> vumps done@step: 3, error=2.859635101088892e-8
-    10    -6.602058e-01     6.074573e-04
- * time: 6.656000137329102
-random initial -> vumps done@step: 3, error=1.604554445669967e-7
-random initial -> vumps done@step: 3, error=2.240933841146041e-7
-random initial -> vumps done@step: 3, error=3.078486569886867e-8
-random initial -> vumps done@step: 3, error=6.27216663694798e-8
-random initial -> vumps done@step: 3, error=1.1897165037243467e-8
-random initial -> vumps done@step: 3, error=2.200553122431604e-8
-    11    -6.602150e-01     5.023356e-04
- * time: 7.26800012588501
-random initial -> vumps done@step: 3, error=6.708030454243216e-8
-random initial -> vumps done@step: 3, error=9.99614376907481e-9
-random initial -> vumps done@step: 3, error=1.7906553908410097e-7
-random initial -> vumps done@step: 3, error=5.0993333410340515e-8
-random initial -> vumps done@step: 3, error=4.381896611190456e-8
-random initial -> vumps done@step: 3, error=1.9346864723150772e-7
-    12    -6.602300e-01     3.530335e-04
- * time: 7.882000207901001
-random initial -> vumps done@step: 3, error=2.1421856634584414e-8
-random initial -> vumps done@step: 3, error=8.544935028820756e-8
-random initial -> vumps done@step: 3, error=9.9190967749313e-8
-random initial -> vumps done@step: 3, error=2.747433045515976e-7
-    13    -6.602303e-01     1.737444e-04
- * time: 8.296000003814697
-random initial -> vumps done@step: 3, error=4.4313614221677196e-8
-random initial -> vumps done@step: 3, error=2.1860287600194127e-8
-random initial -> vumps done@step: 3, error=8.561316114773221e-8
-random initial -> vumps done@step: 3, error=1.1682909198113247e-7
-random initial -> vumps done@step: 3, error=5.429999806923313e-8
-random initial -> vumps done@step: 3, error=4.337186261571496e-8
-    14    -6.602306e-01     4.633383e-05
- * time: 8.91100001335144
+julia> res = optimiseipeps(ipeps, h, key; f_tol=1e-6);
+random initial vumps environment-> vumps done@step: 4, error=1.0489914354483037e-12
+random initial vumps environment-> vumps done@step: 4, error=1.2732519803957594e-13
+0.0s   0   -0.50059619356879   0.014102449838274057
+random initial vumps environment-> vumps done@step: 3, error=9.154139619711965e-11
+random initial vumps environment-> vumps done@step: 4, error=9.430263945021394e-13
+random initial vumps environment-> vumps done@step: 4, error=3.979956712626124e-12
+random initial vumps environment-> vumps done@step: 4, error=5.9929398056604074e-12
+random initial vumps environment-> vumps done@step: 10, error=7.652370287706936e-11
+random initial vumps environment-> vumps done@step: 10, error=2.4101525463803696e-11
+random initial vumps environment-> vumps done@step: 16, error=9.381476715773855e-11
+random initial vumps environment-> vumps done@step: 15, error=5.937732510044041e-11
+1.65s   1   -0.6385044099206219   0.10899289517449176
+random initial vumps environment-> vumps done@step: 9, error=9.951902201226095e-11
+random initial vumps environment-> vumps done@step: 11, error=6.641486783443332e-11
+random initial vumps environment-> vumps done@step: 11, error=6.015094120795308e-11
+random initial vumps environment-> vumps done@step: 11, error=9.276293045844143e-11
+2.65s   2   -0.6545898839653035   0.032162408113119406
+random initial vumps environment-> vumps done@step: 8, error=5.124716627105218e-11
+random initial vumps environment-> vumps done@step: 9, error=1.92449129673697e-11
+random initial vumps environment-> vumps done@step: 6, error=2.3698881225420333e-11
+random initial vumps environment-> vumps done@step: 6, error=5.797919341685305e-11
+random initial vumps environment-> vumps done@step: 7, error=1.5401397944317312e-11
+random initial vumps environment-> vumps done@step: 6, error=2.2618857635151177e-11
+3.75s   3   -0.6573375734169976   0.039561569212385586
+random initial vumps environment-> vumps done@step: 5, error=2.549137854523396e-11
+random initial vumps environment-> vumps done@step: 5, error=6.68406692580882e-11
+random initial vumps environment-> vumps done@step: 17, error=6.366884458126922e-11
+random initial vumps environment-> vumps done@step: 17, error=9.934533464593135e-11
+random initial vumps environment-> vumps done@step: 6, error=5.883791256334852e-11
+random initial vumps environment-> vumps done@step: 6, error=5.83406096151748e-12
+5.12s   4   -0.6596136233294728   0.015573329394085754
+random initial vumps environment-> vumps done@step: 5, error=3.7539203414861e-12
+random initial vumps environment-> vumps done@step: 5, error=6.877548650353064e-12
+random initial vumps environment-> vumps done@step: 5, error=1.616342689952346e-11
+random initial vumps environment-> vumps done@step: 5, error=1.2055035755836548e-11
+5.7s   5   -0.6599632054097899   0.005715266393653051
+random initial vumps environment-> vumps done@step: 4, error=7.192744864619857e-11
+random initial vumps environment-> vumps done@step: 5, error=2.5455979927330197e-11
+random initial vumps environment-> vumps done@step: 5, error=6.344939627625178e-12
+random initial vumps environment-> vumps done@step: 5, error=1.201023390861985e-11
+random initial vumps environment-> vumps done@step: 5, error=1.1552809545998206e-11
+random initial vumps environment-> vumps done@step: 5, error=8.895594361977555e-12
+6.52s   6   -0.6600382797191856   0.004535057733191031
+random initial vumps environment-> vumps done@step: 5, error=5.2951673597294826e-12
+random initial vumps environment-> vumps done@step: 5, error=3.787365760472808e-12
+random initial vumps environment-> vumps done@step: 4, error=9.749135107967033e-11
+random initial vumps environment-> vumps done@step: 5, error=5.25082198278789e-12
+random initial vumps environment-> vumps done@step: 6, error=1.0974055538302087e-11
+random initial vumps environment-> vumps done@step: 6, error=3.9295189593627114e-11
+random initial vumps environment-> vumps done@step: 5, error=1.9693125758675934e-12
+random initial vumps environment-> vumps done@step: 5, error=5.144487725615619e-12
+7.66s   7   -0.6601481008317902   0.0018887172494824567
+random initial vumps environment-> vumps done@step: 5, error=5.667439944354684e-12
+random initial vumps environment-> vumps done@step: 5, error=3.2772515949642094e-12
+random initial vumps environment-> vumps done@step: 5, error=2.123867676057697e-12
+random initial vumps environment-> vumps done@step: 5, error=1.5835486025099777e-11
+random initial vumps environment-> vumps done@step: 5, error=8.213707034045823e-12
+random initial vumps environment-> vumps done@step: 5, error=2.664839932267421e-12
+8.51s   8   -0.6602134912910089   0.002071590543300587
+random initial vumps environment-> vumps done@step: 5, error=3.015076741488207e-12
+random initial vumps environment-> vumps done@step: 5, error=2.7480885164944934e-12
+random initial vumps environment-> vumps done@step: 5, error=3.5444812888396305e-12
+random initial vumps environment-> vumps done@step: 5, error=3.012376398925062e-12
+random initial vumps environment-> vumps done@step: 5, error=4.232969341834662e-12
+random initial vumps environment-> vumps done@step: 5, error=1.2860570439812016e-12
+9.38s   9   -0.6602213793592919   0.00032942396847243606
+random initial vumps environment-> vumps done@step: 5, error=2.7681478003954194e-12
+random initial vumps environment-> vumps done@step: 5, error=4.713808518097429e-12
+random initial vumps environment-> vumps done@step: 5, error=2.589606449290332e-12
+random initial vumps environment-> vumps done@step: 5, error=3.457230578419805e-12
+random initial vumps environment-> vumps done@step: 5, error=2.723682876267463e-12
+random initial vumps environment-> vumps done@step: 5, error=5.23086868748299e-12
+10.27s   10   -0.6602221482821853   0.00036791238293452775
+random initial vumps environment-> vumps done@step: 5, error=6.923202995208043e-12
+random initial vumps environment-> vumps done@step: 5, error=7.491563083179787e-12
+random initial vumps environment-> vumps done@step: 5, error=3.574972371996455e-12
+random initial vumps environment-> vumps done@step: 5, error=1.3405389879914542e-12
+random initial vumps environment-> vumps done@step: 4, error=8.022341320900762e-11
+random initial vumps environment-> vumps done@step: 5, error=1.7423508186029293e-12
+random initial vumps environment-> vumps done@step: 5, error=1.151866438861155e-11
+random initial vumps environment-> vumps done@step: 5, error=5.746381904160193e-13
+11.38s   11   -0.6602278618403974   0.0005036918984882396
+random initial vumps environment-> vumps done@step: 5, error=5.634813509709247e-12
+random initial vumps environment-> vumps done@step: 5, error=2.1792647028045365e-12
+random initial vumps environment-> vumps done@step: 5, error=1.757038676455262e-12
+random initial vumps environment-> vumps done@step: 5, error=1.195586351550817e-12
+random initial vumps environment-> vumps done@step: 5, error=3.736149941173614e-12
+random initial vumps environment-> vumps done@step: 5, error=1.7166160043399526e-12
+12.25s   12   -0.6602296412719777   0.0001672531647296988
+random initial vumps environment-> vumps done@step: 5, error=5.80563553155269e-12
+random initial vumps environment-> vumps done@step: 5, error=2.2725647645770175e-12
+random initial vumps environment-> vumps done@step: 5, error=3.925135356312597e-12
+random initial vumps environment-> vumps done@step: 5, error=1.8290561684937775e-12
+random initial vumps environment-> vumps done@step: 5, error=1.5082826189334574e-12
+random initial vumps environment-> vumps done@step: 5, error=3.1896435447993355e-12
+random initial vumps environment-> vumps done@step: 5, error=3.1692368278357683e-12
+random initial vumps environment-> vumps done@step: 5, error=4.068355689126351e-12
+13.38s   13   -0.6602304380655973   0.00017266087486525548
+random initial vumps environment-> vumps done@step: 4, error=7.8959721400154e-11
+random initial vumps environment-> vumps done@step: 5, error=3.1588355718029277e-12
+random initial vumps environment-> vumps done@step: 5, error=3.797164129868554e-12
+random initial vumps environment-> vumps done@step: 5, error=3.540769958525511e-12
+random initial vumps environment-> vumps done@step: 5, error=3.455155843639284e-12
+random initial vumps environment-> vumps done@step: 5, error=4.270376389093168e-12
+14.23s   14   -0.6602310478803142   3.24337247078898e-5
+random initial vumps environment-> vumps done@step: 5, error=2.808204269321628e-12
+random initial vumps environment-> vumps done@step: 5, error=1.0854196484758662e-11
+random initial vumps environment-> vumps done@step: 5, error=2.5279854183494677e-12
+random initial vumps environment-> vumps done@step: 5, error=4.717683859453325e-12
+random initial vumps environment-> vumps done@step: 5, error=9.165939324482338e-12
+random initial vumps environment-> vumps done@step: 5, error=3.8268423259016495e-12
+15.09s   15   -0.660231052548369   3.0683534939298076e-5
 ```
 where our final value for the energy `e = -0.6602` agrees with the value found in the paper.
 
 ## to do 
 
-* complex IPEPS and MPS
+* complex iPEPS and MPS
+
+For complex situation `A` and `A'` are different independent variables, so must to input two variables.

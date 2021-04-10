@@ -77,21 +77,21 @@ function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) 
     C, AR = rightorth(AL)
     _, FL = leftenv(AL, M)
     _, FR = rightenv(AR, M)
-    print("random initial -> ")
+    print("random initial vumps environment-> ")
     AL,C,AR,FL,FR
 end
 
 function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int) where T
     env = load(chkp_file)["env"]
-    print("load from $(chkp_file) -> ")   
+    print("vumps environment load from $(chkp_file) -> ")   
     AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
 end
 
-function vumps(rt::VUMPSRuntime; tol::Real, maxit::Integer)
+function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Integer)
     # initialize
     olderror = Inf
 
-    stopfun = StopFunction(olderror, -1, tol, maxit)
+    stopfun = StopFunction(olderror, -1, tol, maxiter)
     rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror, tol), stopfun)
     println("vumps done@step: $(stopfun.counter), error=$(err)")
     return rt

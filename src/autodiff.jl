@@ -21,15 +21,15 @@ function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple
     return y, back
 end
 
-# # improves performance compared to default implementation, also avoids errors
-# # with some complex arrays
-# function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
-#     n = norm(A)
-#     function back(Δ)
-#         return NO_FIELDS, Δ .* A ./ (n + eps(0f0)), NO_FIELDS
-#     end
-#     return n, back
-# end
+# improves performance compared to default implementation, also avoids errors
+# with some complex arrays
+function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
+    n = norm(A)
+    function back(Δ)
+        return NO_FIELDS, Δ .* A ./ (n + eps(0f0)), NO_FIELDS
+    end
+    return n, back
+end
 
 function ChainRulesCore.rrule(::typeof(leftenv),AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
     λ, FL = leftenv(AL, M, FL; kwargs...)
@@ -58,8 +58,8 @@ function ChainRulesCore.rrule(::typeof(rightenv),AR::AbstractArray{T}, M::Abstra
     return (λ, FR), back
 end
 
-function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, 
-                                                                    FR::AbstractArray{T}; kwargs...) where {T}
+function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; 
+    kwargs...) where {T}
     λ, AC = ACenv(AC, FL, M, FR; kwargs...)
     function back((dλ, dAC))
         ξ = rand(T,size(AC))
@@ -96,7 +96,9 @@ function ChainRulesCore.rrule(::typeof(qrpos),A::AbstractArray{T,2}) where {T}
     Q,R = qrpos(A)
     function back((dQ,dR))
         M = R * dR' - dQ'*Q
-        dA = (dQ + Q * Symmetric(M, :L)) * (R^(-1))'
+        Rt = rand(T,size(R))
+        Rt,info = linsolve(x -> R * x, Matrix(I,size(R)), Rt, 0, 1)
+        dA = (dQ + Q * Symmetric(M, :L)) * (Rt)'
         return NO_FIELDS, dA
     end
     return (Q,R), back
@@ -106,7 +108,9 @@ function ChainRulesCore.rrule(::typeof(lqpos),A::AbstractArray{T,2}) where {T}
     L,Q = lqpos(A)
     function back((dL,dQ))
         M = L' * dL - dQ*Q'
-        dA = (L^(-1))' * (dQ + Symmetric(M, :L) * Q)
+        Lt = rand(T,size(L))
+        Lt,info = linsolve(x -> L * x, Matrix(I,size(L)), Lt, 0, 1)
+        dA = (Lt)' * (dQ + Symmetric(M, :L) * Q)
         return NO_FIELDS, dA
     end
     return (L,Q), back
