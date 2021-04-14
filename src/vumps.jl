@@ -66,34 +66,34 @@ julia> size(rt.C) == (4,4)
 true
 ```
 "
-function SquareVUMPSRuntime(M::AbstractArray{T,4}, env, D::Int) where T
-    return SquareVUMPSRuntime(M, _initializect_square(M, env, D)...)
+function SquareVUMPSRuntime(M::AbstractArray{T,4}, env, D::Int; verbose = false) where T
+    return SquareVUMPSRuntime(M, _initializect_square(M, env, D; verbose = verbose)...)
 end
 
-function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int) where T
+function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int; verbose = false) where T
     d = size(M,1)
     A = rand(T,D,d,D)
     AL, = leftorth(A)
     C, AR = rightorth(AL)
     _, FL = leftenv(AL, M)
     _, FR = rightenv(AR, M)
-    print("random initial vumps environment-> ")
+    verbose && print("random initial vumps environment-> ")
     AL,C,AR,FL,FR
 end
 
-function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int) where T
+function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int; verbose = false) where T
     env = load(chkp_file)["env"]
-    print("vumps environment load from $(chkp_file) -> ")   
+    verbose && print("vumps environment load from $(chkp_file) -> ")   
     AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
 end
 
-function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Integer)
+function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Int, verbose = false)
     # initialize
     olderror = Inf
 
     stopfun = StopFunction(olderror, -1, tol, maxiter)
     rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror, tol), stopfun)
-    println("vumps done@step: $(stopfun.counter), error=$(err)")
+    verbose && println("vumps done@step: $(stopfun.counter), error=$(err)")
     return rt
 end
 

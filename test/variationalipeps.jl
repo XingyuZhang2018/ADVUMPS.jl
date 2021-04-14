@@ -24,7 +24,7 @@ using LinearAlgebra: svd, norm
     a[1,1,1,1,2] = a[1,1,1,1,1] = randn()
     @test abs(energy(h,SquareIPEPS(a); χ=4, tol=1e-10, maxiter=10)) < 1e-9
 
-    grad = let energy = x -> real(energy(h, SquareIPEPS(x); χ=8, tol=1e-10, maxiter=1))
+    grad = let energy = x -> real(energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxiter=10))
         res = optimize(energy,
             Δ -> Zygote.gradient(energy,Δ)[1], a, LBFGS(m=20), inplace = false)
     end

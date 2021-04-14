@@ -20,7 +20,7 @@ end
 return the energy of the `ipeps` 2-site hamiltonian `h` and calculated via a
 ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxiter::Int) where T
+function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxiter::Int, verbose = false) where T
     ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
@@ -28,8 +28,8 @@ function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxiter
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
 
-    rt = SquareVUMPSRuntime(a, Val(:random), χ)
-    env = vumps(rt; tol=tol, maxiter=maxiter)
+    rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
+    env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
     e = expectationvalue(h, ap, env)
     return e
 end
@@ -59,17 +59,17 @@ end
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int)
+function init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
     folder = "./data/"
     mkpath(folder)
     key = (model, D, χ, tol, maxiter)
     chkp_file = folder*"$(model)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         bulk = load(chkp_file)["ipeps"]
-        println("load iPEPS from $chkp_file")
+        verbose && println("load iPEPS from $chkp_file")
     else
         bulk = rand(D,D,D,D,2)
-        println("random initial iPEPS")
+        verbose && println("random initial iPEPS")
     end
     ipeps = SquareIPEPS(bulk)
     ipeps = indexperm_symmetrize(ipeps)
@@ -85,9 +85,9 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::IPEPS{LT}, h, key;f_tol = 1e-6, optimmethod = LBFGS(m = 20)) where LT
+function optimiseipeps(ipeps::IPEPS{LT}, h, key;f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20)) where LT
     model, D, χ, tol, maxiter = key
-    let energy = x -> real(energy(h, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter))
+    let energy = x -> real(energy(h, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
         res = optimize(x -> energy(x),
             (G, x) -> (G .= Zygote.gradient(energy,x)[1]), 
             ipeps.bulk, optimmethod,

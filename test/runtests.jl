@@ -17,6 +17,11 @@ using Test
         include("autodiff.jl")
     end
 
+    @testset "fixedpoint" begin
+        println("fixedpoint tests running...")
+        include("fixedpoint.jl")
+    end
+
     @testset "vumps" begin
         println("vumps tests running...")
         include("vumps.jl")

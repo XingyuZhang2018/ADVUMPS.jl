@@ -3,8 +3,8 @@ using LinearAlgebra
 using KrylovKit
 
 @Zygote.nograd StopFunction
-# @Zygote.nograd leftorth
-# @Zygote.nograd rightorth
+@Zygote.nograd leftorth
+@Zygote.nograd rightorth
 @Zygote.nograd _initializect_square
 @Zygote.nograd printstyled
 
