@@ -47,9 +47,7 @@ dAL  =   FL ── M ── ξl   +   FL ── M ── ξl
 function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
     λ, FL = leftenv(AL, M, FL; kwargs...)
     function back((dλ, dFL))
-        ξl = rand(T, size(FL))
-        ξl = ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, ξl, M, conj(AL)) - λ .* ξl
-        ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), ξl, -λ, 1; kwargs...)
+        ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λ, 1; kwargs...)
         dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL, M, conj(AL), ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL, M, AL, ξl)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AL, conj(AL), ξl)
         # @show info ein"abc,abc ->"(FL,ξl)[] ein"γpη,γpη -> "(FL,dFL)[]
@@ -78,9 +76,7 @@ dAR  =   ξr ── M ── FR   +   ξr ── M ── FR
 function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
     λ, FR = rightenv(AR, M, FR; kwargs...)
     function back((dλ, dFR))
-        ξr = rand(T, size(FR))
-        ξr = ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, ξr, M, conj(AR)) - λ .* ξr
-        ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), ξr, -λ, 1; kwargs...)
+        ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λ, 1; kwargs...)
         dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr, M, conj(AR), FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr, M, AR, FR)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr, AR, conj(AR), FR)
         return NO_FIELDS, dAR, dM, NO_FIELDS...
@@ -115,10 +111,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     kwargs...) where {T}
     λ, AC = ACenv(AC, FL, M, FR; kwargs...)
     function back((dλ, dAC))
-        ξ = rand(T, size(AC))
-        ξ = ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, ξ, M, FR) - λ .* ξ
-        # b = dAC - AC .* ein"γpη,γpη -> "(AC,dAC)[]
-        ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, ξ, -λ, 1; kwargs...)
+        ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, -λ, 1; kwargs...)
         # @show info ein"abc,abc ->"(AC,ξ)[] ein"γpη,γpη -> "(AC,dAC)[]
         dFL = -ein"ηpβ,βaα,csap,γsα -> γcη"(AC, FR, M, ξ)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AC, ξ, FR)
@@ -138,7 +131,7 @@ dFL  =      ─────── FR
           │         │ 
           └──  ξ  ──┘ 
 
-          ┌──  AC ──┐ 
+          ┌──  C  ──┐ 
           │         │ 
 dFR  =   FL ─────── 
           │         │ 
@@ -148,10 +141,7 @@ dFR  =   FL ───────
 function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
     λ, C = Cenv(C, FL, FR; kwargs...)
     function back((dλ, dC))
-        ξ = rand(T, size(C))
-        ξ = ein"αaγ,αβ,ηaβ -> γη"(FL, ξ, FR) - λ .* ξ
-        # b = dC - C .* ein"γpη,γpη -> "(C,dC)[]
-        ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, ξ, -λ, 1; kwargs...)
+        ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, -λ, 1; kwargs...)
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"ηβ,βaα,γα -> γaη"(C, FR, ξ)
         dFR = -ein"ηβ,γcη,γα -> βcα"(C, FL, ξ)
