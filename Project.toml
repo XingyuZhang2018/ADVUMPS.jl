@@ -21,6 +21,7 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 ChainRulesTestUtils = "0.6"
+OMEinsum = "0.3"
 julia = "1.6.0"
 
 [extras]
