@@ -28,8 +28,16 @@ function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxiter
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
 
-    rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
+    # folder = "./data/"
+    # mkpath(folder)
+    # chkp_file = folder*"vumps_env_D$(D)_chi$(χ).jld2"
+    # if isfile(chkp_file)
+    #     rt = SquareVUMPSRuntime(a, chkp_file, χ; verbose = verbose)
+    # else
+        rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
+    # end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
+    # save(chkp_file, "env", env)
     e = expectationvalue(h, ap, env)
     return e
 end

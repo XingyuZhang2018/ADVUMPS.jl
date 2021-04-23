@@ -1,4 +1,4 @@
-using Test
+using Test 
 using ADVUMPS
 using ADVUMPS: energy, num_grad, diaglocalhamiltonian, diaglocal
 using OMEinsum, Zygote, Random
@@ -108,24 +108,24 @@ end
 
 @testset "heisenberg" begin
     # comparison with results from https://github.com/wangleiphy/tensorgrad
-    Random.seed!(3)
-    ipeps, key = init_ipeps(Heisenberg(); D=2, χ=4, tol=1e-10, maxiter=20)
-    h = hamiltonian(Heisenberg())
-    res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
-    e = minimum(res)
-    @test isapprox(e, -0.66023, atol = 1e-4)
+    # Random.seed!(3)
+    # ipeps, key = init_ipeps(Heisenberg(); D=2, χ=4, tol=1e-10, maxiter=20)
+    # h = hamiltonian(Heisenberg())
+    # res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
+    # e = minimum(res)
+    # @test isapprox(e, -0.66023, atol = 1e-4)
 
-    Random.seed!(3)
-    ipeps, key = init_ipeps(Heisenberg(2.0,2.0,1.0); D=2, χ=5, tol=1e-10, maxiter=20)
-    h = hamiltonian(Heisenberg(2.0,2.0,1.0))
-    res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
-    e = minimum(res)
-    @test isapprox(e, -1.190, atol = 1e-3)
+    # Random.seed!(3)
+    # ipeps, key = init_ipeps(Heisenberg(2.0,2.0,1.0); D=2, χ=5, tol=1e-10, maxiter=20)
+    # h = hamiltonian(Heisenberg(2.0,2.0,1.0))
+    # res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
+    # e = minimum(res)
+    # @test isapprox(e, -1.190, atol = 1e-3)
 
-    Random.seed!(3)
-    ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=5, tol=1e-10, maxiter=20)
+    Random.seed!(100)
+    ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=20, tol=1e-20, maxiter=20)
     h = hamiltonian(Heisenberg(0.5,0.5,2.0))
-    res = optimiseipeps(ipeps, h, key; f_tol = 1e-6)
+    res = optimiseipeps(ipeps, h, key; f_tol = 1e-6, verbose = true)
     e = minimum(res)
     @test isapprox(e, -1.0208, atol = 1e-3)
 end

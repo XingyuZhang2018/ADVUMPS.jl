@@ -7,6 +7,9 @@ using KrylovKit
 @Zygote.nograd rightorth
 @Zygote.nograd _initializect_square
 @Zygote.nograd printstyled
+@Zygote.nograd save
+@Zygote.nograd load
+@Zygote.nograd error
 
 # patch since it's currently broken otherwise
 function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
@@ -47,7 +50,9 @@ dAL  =   FL ── M ── ξl   +   FL ── M ── ξl
 function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
     λ, FL = leftenv(AL, M, FL; kwargs...)
     function back((dλ, dFL))
-        ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λ, 1; kwargs...)
+        ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λ, 1)
+        err = ein"abc,cba ->"(FL, ξl)[]
+        abs(err) > 1e-5 && throw("FL and ξl aren't orthometric. err = $(err)")
         dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL, M, conj(AL), ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL, M, AL, ξl)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AL, conj(AL), ξl)
         # @show info ein"abc,abc ->"(FL,ξl)[] ein"γpη,γpη -> "(FL,dFL)[]
@@ -76,7 +81,9 @@ dAR  =   ξr ── M ── FR   +   ξr ── M ── FR
 function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
     λ, FR = rightenv(AR, M, FR; kwargs...)
     function back((dλ, dFR))
-        ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λ, 1; kwargs...)
+        ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)),  -λ, 1)
+        err = ein"abc,cba ->"(ξr, FR)[]
+        abs(err) > 1e-5 && throw("FR and ξr aren't orthometric. err = $(err)")
         dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr, M, conj(AR), FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr, M, AR, FR)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr, AR, conj(AR), FR)
         return NO_FIELDS, dAR, dM, NO_FIELDS...
@@ -111,7 +118,9 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     kwargs...) where {T}
     λ, AC = ACenv(AC, FL, M, FR; kwargs...)
     function back((dλ, dAC))
-        ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, -λ, 1; kwargs...)
+        ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, -λ, 1)
+        err = ein"abc,abc ->"(AC, ξ)[]
+        abs(err) > 1e-5 && throw("AC and ξ aren't orthometric. err = $(err)")
         # @show info ein"abc,abc ->"(AC,ξ)[] ein"γpη,γpη -> "(AC,dAC)[]
         dFL = -ein"ηpβ,βaα,csap,γsα -> γcη"(AC, FR, M, ξ)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AC, ξ, FR)
@@ -141,7 +150,9 @@ dFR  =   FL ───────
 function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
     λ, C = Cenv(C, FL, FR; kwargs...)
     function back((dλ, dC))
-        ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, -λ, 1; kwargs...)
+        ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, -λ, 1)
+        err = ein"ab,ab ->"(C, ξ)[]
+        abs(err) > 1e-5 && throw("C and ξ aren't orthometric. err = $(err)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"ηβ,βaα,γα -> γaη"(C, FR, ξ)
         dFR = -ein"ηβ,γcη,γα -> βcα"(C, FL, ξ)
@@ -156,8 +167,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = R * dR' - dQ' * Q
-        Rt = rand(T, size(R))
-        Rt, info = linsolve(x -> R * x, Matrix(I, size(R)), Rt, 0, 1)
+        Rt, info = linsolve(x -> R * x, Matrix(I, size(R)), 0, 1)
         dA = (dQ + Q * Symmetric(M, :L)) * (Rt)'
         return NO_FIELDS, dA
     end
@@ -168,8 +178,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = L' * dL - dQ * Q'
-        Lt = rand(T, size(L))
-        Lt, info = linsolve(x -> L * x, Matrix(I, size(L)), Lt, 0, 1)
+        Lt, info = linsolve(x -> L * x, Matrix(I, size(L)), 0, 1)
         dA = (Lt)' * (dQ + Symmetric(M, :L) * Q)
         return NO_FIELDS, dA
     end

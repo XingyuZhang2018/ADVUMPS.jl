@@ -102,6 +102,13 @@ function vumpstep(rt::VUMPSRuntime,err,tol)
     _, AL, C, AR, = ACCtoALAR(AL, C, AR, M, FL, FR; tol = tol/10)
     _, FL = leftenv(AL, M, FL; tol = tol/10)
     _, FR = rightenv(AR, M, FR; tol = tol/10)
+    # M = x .* M + Zygote.@ignore (1-x) .* M
+    x = 1e-10
+    AL = x .* AL + (1-x) .* Zygote.@ignore AL
+    C = x .* C +  (1-x) .* Zygote.@ignore C
+    AR = x .* AR + (1-x) .* Zygote.@ignore AR
+    FL = x .* FL + (1-x) .* Zygote.@ignore FL
+    FR = x .* FR + (1-x) .* Zygote.@ignore FR
     err = error(AL,C,FL,M,FR)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err, tol
 end
