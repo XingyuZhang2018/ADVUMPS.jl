@@ -98,17 +98,24 @@ function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Int, verbose = false)
 end
 
 function vumpstep(rt::VUMPSRuntime,err,tol)
+    # global backratio = 1.0
+    # Zygote.@ignore print(round(-log(10,backratio)),' ')
+    print("=")
     M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
-    _, AL, C, AR, = ACCtoALAR(AL, C, AR, M, FL, FR; tol = tol/10)
+    AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
+    _, AC = ACenv(AC, FL, M, FR; tol = tol/10)
+    _, C = Cenv(C, FL, FR; tol = tol/10)
+    AL, AR, _, _ = ACCtoALAR(AC, C)
     _, FL = leftenv(AL, M, FL; tol = tol/10)
     _, FR = rightenv(AR, M, FR; tol = tol/10)
-    # M = x .* M + Zygote.@ignore (1-x) .* M
-    x = 1e-10
-    AL = x .* AL + (1-x) .* Zygote.@ignore AL
-    C = x .* C +  (1-x) .* Zygote.@ignore C
-    AR = x .* AR + (1-x) .* Zygote.@ignore AR
-    FL = x .* FL + (1-x) .* Zygote.@ignore FL
-    FR = x .* FR + (1-x) .* Zygote.@ignore FR
+
+    # M = backratio .* M + Zygote.@ignore (1-backratio) .* M
+    # AL = backratio .* AL + Zygote.@ignore (1-backratio) .* AL
+    # C = backratio .* C +  Zygote.@ignore (1-backratio) .* C
+    # AR = backratio .* AR + Zygote.@ignore (1-backratio) .* AR
+    # FL = backratio .* FL + Zygote.@ignore (1-backratio) .* FL
+    # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
+
     err = error(AL,C,FL,M,FR)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err, tol
 end
@@ -234,7 +241,15 @@ FL─ M ─  = λL FL─
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
-    return real(λs[1]), real(FLs[1])
+    # if abs(λs[1]) - abs(λs[2]) < 1e-5
+    #     if real(λs[1]) > 0
+    #         real(λs[1]), real(FLs[1])
+    #     else
+    #         real(λs[2]), real(FLs[2])
+    #     end
+    # else
+        return real(λs[1]), real(FLs[1])
+    # end
 end
 """
     rightenv(A, M, FR; kwargs...)
@@ -251,7 +266,16 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
-    return real(λs[1]), real(FRs[1])
+    # @show λs
+    # if abs(λs[1]) - abs(λs[2]) < 1e-5
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(FRs[1])
+    #     else
+    #         return real(λs[2]), real(FRs[2])
+    #     end
+    # else
+        return real(λs[1]), real(FRs[1])
+    # end
 end
 
 """
@@ -267,7 +291,15 @@ FL─ M ──FR  =  λAC  │   │   │
 """
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
-    return real(λs[1]), real(ACs[1])
+    # if abs(λs[1]) - abs(λs[2]) < 1e-5
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(ACs[1])
+    #     else
+    #         return real(λs[2]), real(ACs[2])
+    #     end
+    # else
+        return real(λs[1]), real(ACs[1])
+    # end
 end
 
 """
@@ -283,7 +315,16 @@ FL─── FR  =  λC  │     │
 """
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
-    return real(λs[1]), real(Cs[1])
+    # @show λs
+    # if abs(λs[1]) - abs(λs[2]) < 1e-5
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(Cs[1])
+    #     else
+    #         return real(λs[2]), real(Cs[2])
+    #     end
+    # else
+        return real(λs[1]), real(Cs[1])
+    # end
 end
 
 """
@@ -294,12 +335,8 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
   │             │            │   
 ````
 """
-function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
-    D, d, = size(AL)
-    AC = ein"asc,cb -> asb"(AL,C)
-    μ1, AC = ACenv(AC, FL, M, FR; kwargs...)
-    μ0, C = Cenv(C, FL, FR; kwargs...)
-    λ = real(μ1/μ0)
+function ACCtoALAR(AC, C)
+    D, d, = size(AC)
 
     QAC, RAC = qrpos(reshape(AC,(D*d, D)))
     QC, RC = qrpos(C)
@@ -310,8 +347,7 @@ function ACCtoALAR(AL, C, AR, M, FL, FR; kwargs...)
     LC, QC = lqpos(C)
     AR = reshape(QC'*QAC, (D, d, D))
     errR = norm(LAC-LC)
-
-    return λ, AL, C, AR, errL, errR
+    return AL, AR, errL, errR
 end
 
 """

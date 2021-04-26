@@ -9,18 +9,35 @@ using ChainRulesCore
 using ChainRulesTestUtils
 using Random
 
-@testset "autodiff" begin
+@testset "Zygote" begin
     a = randn(10,10)
     @test Zygote.gradient(norm, a)[1] ≈ num_grad(norm, a)
 
     foo1 = x -> sum(Float64[x 2x; 3x 4x])
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1)
 
+    function foo3(x)
+        x = 2*x + x
+        return x
+    end
+    @test Zygote.gradient(foo3, 1)[1] ≈ num_grad(foo3, 1)
+end
+
+@testset "Zygote.@ignore" begin
+    function foo2(x)
+        return x^2
+    end
+    function foo3(x)
+        return x^2 + Zygote.@ignore x^3
+    end
+    @test foo2(1) != foo3(1)
+    @test Zygote.gradient(foo2,1)[1] ≈ Zygote.gradient(foo3,1)[1]
 end
 
 @testset "QR factorization" begin
+    M = rand(10,10)
     function foo5(x)
-        A = [1. + 1im 2 3;2 2 3;3 3 3] .*x
+        A = M.*x
         Q, R = qrpos(A)
         return norm(Q) + norm(R)
     end
@@ -29,8 +46,9 @@ end
 end
 
 @testset "LQ factorization" begin
+    M = rand(10,10)
     function foo6(x)
-        A = [1. + 1im 2 3;2 2 3;3 3 3] .*x
+        A = M .*x
         L, Q = lqpos(A)
         return norm(L) + norm(Q)
     end

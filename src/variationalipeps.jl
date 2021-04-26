@@ -36,7 +36,9 @@ function energy(h::AbstractArray{T,4}, ipeps::IPEPS; χ::Int, tol::Real, maxiter
     # else
         rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
     # end
+    
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
+    # global backratio_old = backratio
     # save(chkp_file, "env", env)
     e = expectationvalue(h, ap, env)
     return e
@@ -95,11 +97,14 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 """
 function optimiseipeps(ipeps::IPEPS{LT}, h, key;f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20)) where LT
     model, D, χ, tol, maxiter = key
+    # global backratio = 1e-5
+    # global backratio_old = 1e-5
     let energy = x -> real(energy(h, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-        res = optimize(x -> energy(x),
-            (G, x) -> (G .= Zygote.gradient(energy,x)[1]), 
-            ipeps.bulk, optimmethod,
-            Optim.Options(f_tol=f_tol, extended_trace=true,
+        res = optimize(energy,
+            Δ -> Zygote.gradient(energy,Δ)[1] / backratio, 
+            ipeps.bulk, optimmethod,inplace = false,
+            Optim.Options(f_tol=f_tol,
+            extended_trace=true,
             callback=os->writelog(os, key)),
             )
     end

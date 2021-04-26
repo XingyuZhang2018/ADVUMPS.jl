@@ -39,27 +39,28 @@ using LinearAlgebra: svd, norm
 end
 
 @testset "gradient" begin
-    Random.seed!(0)
-    h = hamiltonian(TFIsing(1.0))
-    ipeps, key = init_ipeps(TFIsing(1.0); D=2, χ=4, tol=1e-10, maxiter=20)
-    gradzygote = first(Zygote.gradient(ipeps) do x
-        energy(h,x; χ=4, tol=1e-10, maxiter=20)
-    end).bulk
-    gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
-        energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxiter=20)
-    end
-    @test isapprox(gradzygote, gradnum, atol=1e-3)
-
+    # Random.seed!(0)
+    # h = hamiltonian(TFIsing(1.0))
+    # ipeps, key = init_ipeps(TFIsing(1.0); D=2, χ=4, tol=1e-10, maxiter=20)
+    # gradzygote = first(Zygote.gradient(ipeps) do x
+    #     energy(h,x; χ=4, tol=1e-10, maxiter=20)
+    # end).bulk
+    # gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
+    #     energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxiter=20)
+    # end
+    # @test isapprox(gradzygote, gradnum, atol=1e-3)
+    # global backratio = 1.0
     Random.seed!(3)
-    h = hamiltonian(Heisenberg())
-    ipeps, key = init_ipeps(Heisenberg(); D=2, χ=4, tol=1e-10, maxiter=20)
+    h = hamiltonian(Heisenberg(0.5,0.5,2.0))
+    ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=20, tol=1e-20, maxiter=20)
     gradzygote = first(Zygote.gradient(ipeps) do x
-        energy(h,x; χ=4, tol=1e-10, maxiter=20)
+        energy(h,x; χ=20, tol=1e-20, maxiter=5, verbose = true)
     end).bulk
-    gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
-        energy(h, SquareIPEPS(x); χ=4, tol=1e-10, maxiter=20)
-    end
-    @test isapprox(gradzygote, gradnum, atol=1e-3)
+    @show gradzygote
+    # gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
+    #     energy(h, SquareIPEPS(x); χ=10, tol=1e-20, maxiter=20, verbose = true)
+    # end
+    # @test isapprox(gradzygote , gradnum, atol=1e-3)
 end
 
 @testset "TFIsing" begin
@@ -122,6 +123,7 @@ end
     # e = minimum(res)
     # @test isapprox(e, -1.190, atol = 1e-3)
 
+    
     Random.seed!(100)
     ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=20, tol=1e-20, maxiter=20)
     h = hamiltonian(Heisenberg(0.5,0.5,2.0))

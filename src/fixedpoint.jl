@@ -30,7 +30,7 @@ the last error it saw for comparison.
 """
 function (st::StopFunction)(state)
     st.counter += 1
-    st.counter > st.maxit && return true
+    st.counter > st.maxit - 1 && return true
 
     error = state[2]
     error <= st.tol && return true

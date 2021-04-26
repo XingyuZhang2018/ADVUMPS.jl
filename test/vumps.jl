@@ -113,11 +113,6 @@ end
     λL,FL = leftenv(AL, M)
     _, AR = rightorth(A)
     λR,FR = rightenv(AR, M)
-
-    λ, AL, C, AR, errL, errR = ACCtoALAR(AL, C, AR, M, FL, FR)
-    @test isapprox(errL,0,atol = 1e-1)
-    @test isapprox(errR,0,atol = 1e-1)
-    @test isapprox(ein"asc,cb -> asb"(AL,C),ein"ac,csb -> asb"(C,AR),atol = 1e-1)
     
     S = rand(D,d,D,D,d,D)
     function foo4(β)
@@ -145,12 +140,12 @@ end
         @test isapprox(magnetisation(vumps_env(Ising(),β,2),Ising(),β), magofβ(Ising(),β), atol=1e-5)
     end
 
-    β,D = 0.5,3
-    foo1 = β -> -log(Z(vumps_env(Ising(),β,D)))
+    β,D = 0.5,100
+    foo1 = β -> -log(Z(vumps_env(Ising(),β,D,verbose = true)))
     @test isapprox(Zygote.gradient(foo1,β)[1], energy(vumps_env(Ising(),β,D),Ising(), β), atol = 1e-6)
     @test isapprox(Zygote.gradient(foo1,β)[1], num_grad(foo1,β), atol = 1e-6)
 
-    foo2 = β -> magnetisation(vumps_env(Ising(),β,D), Ising(), β)
+    foo2 = β -> magnetisation(vumps_env(Ising(),β,D, verbose = true), Ising(), β)
     @test isapprox(num_grad(foo2,β), magofdβ(Ising(),β), atol = 1e-3)
     @test isapprox(Zygote.gradient(foo2,β)[1], num_grad(foo2,β), atol = 1e-6)
 end
