@@ -342,11 +342,13 @@ function ACCtoALAR(AC, C)
     QC, RC = qrpos(C)
     AL = reshape(QAC*QC', (D, d, D))
     errL = norm(RAC-RC)
+    # @show errL
 
     LAC, QAC = lqpos(reshape(AC,(D, d*D)))
     LC, QC = lqpos(C)
     AR = reshape(QC'*QAC, (D, d, D))
     errR = norm(LAC-LC)
+    # @show errR
     return AL, AR, errL, errR
 end
 

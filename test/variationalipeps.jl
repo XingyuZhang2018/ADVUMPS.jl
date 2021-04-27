@@ -54,13 +54,13 @@ end
     h = hamiltonian(Heisenberg(0.5,0.5,2.0))
     ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=20, tol=1e-20, maxiter=20)
     gradzygote = first(Zygote.gradient(ipeps) do x
-        energy(h,x; χ=20, tol=1e-20, maxiter=5, verbose = true)
+        energy(h,x; χ=20, tol=1e-20, maxiter=20, verbose = true)
     end).bulk
     @show gradzygote
-    # gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
-    #     energy(h, SquareIPEPS(x); χ=10, tol=1e-20, maxiter=20, verbose = true)
-    # end
-    # @test isapprox(gradzygote , gradnum, atol=1e-3)
+    gradnum = num_grad(ipeps.bulk, δ=1e-3) do x
+        energy(h, SquareIPEPS(x); χ=20, tol=1e-20, maxiter=20, verbose = true)
+    end
+    @test isapprox(gradzygote , gradnum, atol=1e-3)
 end
 
 @testset "TFIsing" begin
@@ -123,7 +123,6 @@ end
     # e = minimum(res)
     # @test isapprox(e, -1.190, atol = 1e-3)
 
-    
     Random.seed!(100)
     ipeps, key = init_ipeps(Heisenberg(0.5,0.5,2.0); D=2, χ=20, tol=1e-20, maxiter=20)
     h = hamiltonian(Heisenberg(0.5,0.5,2.0))
