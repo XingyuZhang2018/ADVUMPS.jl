@@ -64,7 +64,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::Abstra
         #     global backratio /= 100
         #     @show backratio
         # end
-        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL, M, conj(AL), ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL, M, AL, ξl)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AL, conj(AL), ξl)
         # @show info ein"abc,abc ->"(FL,ξl)[] ein"γpη,γpη -> "(FL,dFL)[]
@@ -106,7 +106,7 @@ function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::Abstr
         #     global backratio /= 100
         #     @show backratio
         # end
-        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
+        abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr, M, conj(AR), FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr, M, AR, FR)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr, AR, conj(AR), FR)
         return NO_FIELDS, dAR, dM, NO_FIELDS...
@@ -154,7 +154,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
         #     global backratio /= 100
         #     @show backratio
         # end
-        # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
+        abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
         # @show info ein"abc,abc ->"(AC,ξ)[] ein"γpη,γpη -> "(AC,dAC)[]
         dFL = -ein"ηpβ,βaα,csap,γsα -> γcη"(AC, FR, M, ξ)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AC, ξ, FR)
@@ -197,7 +197,7 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
         #     global backratio /= 100
         #     @show backratio
         # end
-        # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
+        abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"ηβ,βaα,γα -> γaη"(C, FR, ξ)
         dFR = -ein"ηβ,γcη,γα -> βcα"(C, FL, ξ)
@@ -206,13 +206,30 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
     return (λC, C), back
 end
 
+# function ChainRulesCore.rrule(::typeof(ACCtoALAR), AC, C)
+#     AL, AR, errL, errR = ACCtoALAR(AC, C)
+#     D, d, = size(AC)
+#     function back((dAL, dAR))
+#         dAL = reshape(dAL, (D*d, D))
+#         dAR = reshape(dAR, (D, D*d))
+#         Cinv = C + 1e-6 * I
+#         dAC = reshape((Cinv \ dAL')', (D, d, D)) + reshape(Cinv \ dAR, (D, d, D))
+#         dC = - Cinv' \ (Cinv \ (dAL' * reshape(AC, (D*d, D))))' - Cinv' \ (Cinv \ (reshape(AC, (D, D*d)) * dAR'))'
+#         # dAC = reshape(dAL * (Cinv^-1)', (D, d, D)) + reshape(Cinv^-1 * dAR, (D, d, D))
+#         @show norm(dAC)
+#         # dC = - (Cinv^-1)' * reshape(AC, (D*d, D))' * dAL * (Cinv^-1)' - (Cinv^-1)' * dAR * reshape(AC, (D, D*d))' * (Cinv^-1)'
+#         return NO_FIELDS, dAC, dC
+#     end
+#     return (AL, AR, errL, errR), back
+# end
+
 # adjoint for QR factorization
 # https://journals.aps.org/prx/abstract/10.1103/PhysRevX.9.031041 eq.(5)
 function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = R * dR' - dQ' * Q
-        dA = (UpperTriangular(R) \ (dQ + Q * Symmetric(M, :L))' )'
+        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * Symmetric(M, :L))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -222,7 +239,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = L' * dL - dQ * Q'
-        dA = LowerTriangular(L)' \ (dQ + Symmetric(M, :L) * Q)
+        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + Symmetric(M, :L) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back

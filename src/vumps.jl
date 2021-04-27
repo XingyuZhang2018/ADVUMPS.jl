@@ -100,7 +100,6 @@ end
 function vumpstep(rt::VUMPSRuntime,err,tol)
     # global backratio = 1.0
     # Zygote.@ignore print(round(-log(10,backratio)),' ')
-    print("=")
     M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
     _, AC = ACenv(AC, FL, M, FR; tol = tol/10)
@@ -328,6 +327,8 @@ function Cenv(C, FL, FR;kwargs...)
 end
 
 """
+    AL, AR, errL, errR = ACCtoALAR(AC, C) 
+
 QR factorization to get `AL` and `AR` from `AC` and `C`
 
 ````
@@ -353,6 +354,8 @@ function ACCtoALAR(AC, C)
 end
 
 """
+    err = error(AL,C,FL,M,FR)
+
 Compute the error through all environment `AL,C,FL,M,FR`
 
 ````

@@ -79,9 +79,8 @@ function vumps_env(model::MT, β, D; tol=1e-10, maxiter=20, verbose = false) whe
     else
         rt = SquareVUMPSRuntime(M, Val(:random), D; verbose = verbose)
     end
-    # global backratio = 1e-5
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    # save(chkp_file, "env", env) # if backward go to this way will make mistake!!!
+    # save(chkp_file, "env", env) # if forward steps is too small, backward go to this way will make mistake!!!
     return env
 end
 
