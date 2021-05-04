@@ -240,16 +240,9 @@ FL─ M ─  = λL FL─
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
-    # if abs(λs[1]) - abs(λs[2]) < 1e-5
-    #     if real(λs[1]) > 0
-    #         real(λs[1]), real(FLs[1])
-    #     else
-    #         real(λs[2]), real(FLs[2])
-    #     end
-    # else
-        return real(λs[1]), real(FLs[1])
-    # end
+    return real(λs[1]), real(FLs[1])
 end
+
 """
     rightenv(A, M, FR; kwargs...)
 
@@ -265,17 +258,52 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
-    # @show λs
-    # if abs(λs[1]) - abs(λs[2]) < 1e-5
-    #     if real(λs[1]) > 0
-    #         return real(λs[1]), real(FRs[1])
-    #     else
-    #         return real(λs[2]), real(FRs[2])
-    #     end
-    # else
-        return real(λs[1]), real(FRs[1])
-    # end
+    return real(λs[1]), real(FRs[1])
 end
+
+
+"""
+    λ, FL4 = bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
+
+Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
+of `AL - M - M - conj(AL)` contracted along the physical dimension.
+```
+┌── AL─       ┌──         
+│   │         │             
+│── M ─       │──       
+FL  │    = λL FL  
+│── M ─       │──
+│   │         │
+┕── AL─       ┕──        
+```
+"""
+function bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 2, :LM; ishermitian = false)
+    @show λFL4s
+    return real(λFL4s[1]), real(FL4s[1])
+end
+
+"""
+    λ, FR4 = bigrightenv(AR, M, FR4 = randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1)); kwargs...)
+
+Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
+of `AR - M - conj(AR)`` contracted along the physical dimension.
+```
+ ─ AR──┐         ──┐ 
+   │   │           │ 
+ ─ M ──│         ──│ 
+   │   FR   = λR   FR
+ ─ M ──│         ──│ 
+   │   │           │ 
+ ─ AR──┘         ──┘ 
+```
+"""
+function bigrightenv(AR, M, FR4 = randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1)); kwargs...)
+    λFR4s, FR4s, info = eigsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 2, :LM; ishermitian = false)
+    @show λFR4s
+    return real(λFR4s[1]), real(FR4s[1])
+end
+
 
 """
 Compute the up environment tensor for MPS `FL`,`FR` and MPO `M`, by finding the up fixed point
@@ -290,15 +318,7 @@ FL─ M ──FR  =  λAC  │   │   │
 """
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
-    # if abs(λs[1]) - abs(λs[2]) < 1e-5
-    #     if real(λs[1]) > 0
-    #         return real(λs[1]), real(ACs[1])
-    #     else
-    #         return real(λs[2]), real(ACs[2])
-    #     end
-    # else
-        return real(λs[1]), real(ACs[1])
-    # end
+    return real(λs[1]), real(ACs[1])
 end
 
 """
@@ -314,16 +334,7 @@ FL─── FR  =  λC  │     │
 """
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
-    # @show λs
-    # if abs(λs[1]) - abs(λs[2]) < 1e-5
-    #     if real(λs[1]) > 0
-    #         return real(λs[1]), real(Cs[1])
-    #     else
-    #         return real(λs[2]), real(Cs[2])
-    #     end
-    # else
-        return real(λs[1]), real(Cs[1])
-    # end
+    return real(λs[1]), real(Cs[1])
 end
 
 """

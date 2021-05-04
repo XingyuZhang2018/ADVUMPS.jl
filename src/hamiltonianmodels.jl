@@ -12,9 +12,25 @@ return the hamiltonian of the `model` as a two-site tensor operator.
 "
 function hamiltonian end
 
-struct diaglocal <: HamiltonianModel end
-
 struct Ising <: HamiltonianModel end
+
+struct diaglocal{T<:Vector} <: HamiltonianModel 
+    diag::T
+end
+
+"""
+    diaglocal(diag::Vector)
+
+return the 2-site Hamiltonian with single-body terms given
+by the diagonal `diag`.
+"""
+function hamiltonian(model::diaglocal)
+    diag = model.diag
+    n = length(diag)
+    h = ein"i -> ii"(diag)
+    id = Matrix(I,n,n)
+    reshape(h,n,n,1,1) .* reshape(id,1,1,n,n) .+ reshape(h,1,1,n,n) .* reshape(id,n,n,1,1)
+end
 
 @doc raw"
     TFIsing(hx::Real)

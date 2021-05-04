@@ -41,8 +41,7 @@ end
         Q, R = qrpos(A)
         return norm(Q) + norm(R)
     end
-    @test Zygote.gradient(foo5, 1)[1] ≈ num_grad(foo5, 1)
-    test_rrule(qrpos,rand(10,10))
+    @test isapprox(Zygote.gradient(foo5, 1)[1], num_grad(foo5, 1), atol = 1e-5)
 end
 
 @testset "LQ factorization" begin
@@ -52,8 +51,7 @@ end
         L, Q = lqpos(A)
         return norm(L) + norm(Q)
     end
-    @test Zygote.gradient(foo6, 1)[1] ≈ num_grad(foo6, 1)
-    test_rrule(lqpos,rand(10,10))
+    @test isapprox(Zygote.gradient(foo6, 1)[1], num_grad(foo6, 1), atol = 1e-5)
 end
 
 @testset "eigsolve and linsolve" begin
