@@ -1,5 +1,6 @@
 using Optim, LineSearches
 using LinearAlgebra: I, norm
+using TimerOutputs
 
 """
     energy(h, ipeps; χ, tol, maxiter)
@@ -7,7 +8,7 @@ using LinearAlgebra: I, norm
 return the energy of the `ipeps` 2-site hamiltonian `h` and calculated via a
 ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, maxiter::Int, verbose = false) where T
+function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, maxiter::Int, verbose = false)
     ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
@@ -40,22 +41,20 @@ a `SquareCTMRGRuntime` `env`.
 function expectationvalue(h, ap, env::SquareVUMPSRuntime)
     M,AL,C,AR,FL,FR = env.M,env.AL,env.C,env.AR,env.FL,env.FR
     ap /= norm(ap)
-    # l = ein"abc,cde,anm,ef,ml,bnodpq -> folpq"(FL,AL,conj(AL),C,conj(C),ap)
-    # e = ein"folpq,fgh,lkj,hij,okigrs,pqrs -> "(l,AR,conj(AR),FR,ap,h)[]
-    # n = ein"folpq,fgh,lkj,hij,okigrs -> pqrs"(l,AR,conj(AR),FR,ap)
+
     e = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs,pqrs -> "(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap,h)[]
     n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs -> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
     n = ein"pprr -> "(n)[]
 
-    # AC = ein"asc,cb -> asb"(AL,C)
-    # _, FL4 = bigleftenv(AL, M)
-    # _, FR4 = bigrightenv(AL, M)
-    # e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
-    # n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
-    # n2 = ein"pprr -> "(n2)[]
+    AC = ein"asc,cb -> asb"(AL,C)
+    _, FL4 = bigleftenv(AL, M)
+    _, FR4 = bigrightenv(AR, M)
+    e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
+    n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
+    n2 = ein"pprr -> "(n2)[]
     # @show e/n e2/n2 (e/n+e2/n2)/2
 
-    return e/n
+    return (e/n+e2/n2)/2
 end
 
 """
@@ -93,15 +92,18 @@ The energy is calculated using vumps with key include parameters `χ`, `tol` and
 function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20)) where LT
     model, D, χ, tol, maxiter = key
     h = hamiltonian(model)
-    let energy = x -> real(energy(h, model, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-        res = optimize(energy,
-            Δ -> Zygote.gradient(energy,Δ)[1], 
-            ipeps.bulk, optimmethod,inplace = false,
-            Optim.Options(f_tol=f_tol,
-            extended_trace=true,
-            callback=os->writelog(os, key)),
-            )
-    end
+    to = TimerOutput()
+    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    ff(x) = real(energy(h, model, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    g(x) = @timeit to "backward" Zygote.gradient(ff,x)[1]
+    res = optimize(f, g, 
+        ipeps.bulk, optimmethod,inplace = false,
+        Optim.Options(f_tol=f_tol,
+        extended_trace=true,
+        callback=os->writelog(os, key)),
+        )
+    println(to)
+    return res
 end
 
 """

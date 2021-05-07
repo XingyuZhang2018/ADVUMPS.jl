@@ -271,15 +271,15 @@ of `AL - M - M - conj(AL)` contracted along the physical dimension.
 ┌── AL─       ┌──         
 │   │         │             
 │── M ─       │──       
-FL  │    = λL FL  
+FL4 │    = λL FL4  
 │── M ─       │──
 │   │         │
 ┕── AL─       ┕──        
 ```
 """
 function bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 2, :LM; ishermitian = false)
-    @show λFL4s
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 1, :LM; ishermitian = false, kwargs...)
+    # @show λFL4s
     return real(λFL4s[1]), real(FL4s[1])
 end
 
@@ -292,15 +292,15 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
  ─ AR──┐         ──┐ 
    │   │           │ 
  ─ M ──│         ──│ 
-   │   FR   = λR   FR
+   │  FR4   = λR  FR4
  ─ M ──│         ──│ 
    │   │           │ 
  ─ AR──┘         ──┘ 
 ```
 """
 function bigrightenv(AR, M, FR4 = randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1)); kwargs...)
-    λFR4s, FR4s, info = eigsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 2, :LM; ishermitian = false)
-    @show λFR4s
+    λFR4s, FR4s, info = eigsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 1, :LM; ishermitian = false, kwargs...)
+    # @show λFR4s
     return real(λFR4s[1]), real(FR4s[1])
 end
 

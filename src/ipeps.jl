@@ -28,12 +28,19 @@ gets(ipeps::SquareIPEPS) = size(ipeps.bulk, 5)
 
 return a `SquareIPEPS` based on `ipeps` that is symmetric under
 permutation of its virtual indices.
+```
+        4
+        │
+ 1 ── ipeps ── 3
+        │
+        2
+```
 """
 function indexperm_symmetrize(ipeps::SquareIPEPS)
     x = ipeps.bulk
-    x += permutedims(x, (1,4,3,2,5)) # left-right
-    x += permutedims(x, (3,2,1,4,5)) # up-down
-    x += permutedims(x, (2,1,4,3,5)) # diagonal
-    x += permutedims(x, (4,3,2,1,5)) # rotation
+    x += permutedims(x, (1,4,3,2,5)) # up-down
+    # x += permutedims(x, (3,2,1,4,5)) # left-right
+    # x += permutedims(x, (2,1,4,3,5)) # diagonal
+    # x += permutedims(x, (4,3,2,1,5)) # rotation
     return SquareIPEPS(x / norm(x))
 end

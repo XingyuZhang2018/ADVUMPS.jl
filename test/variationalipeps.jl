@@ -8,7 +8,7 @@ using LinearAlgebra: svd, norm
 @testset "non-interacting" begin
     Random.seed!(100)
     model = diaglocal([1,-1.0])
-    h = hamiltonian(diaglocal([1,-1.0]))
+    h = hamiltonian(model)
     as = (rand(3,3,3,3,2) for _ in 1:10)
     @test all(a -> -1 < energy(h, model, SquareIPEPS(a); χ=5, tol=1e-10, maxiter=10)/2 < 1, as)
 
@@ -98,17 +98,17 @@ end
     e = minimum(res)
     @test isapprox(e, -0.66023, atol = 1e-4)
 
-    Random.seed!(100)
-    model = Heisenberg(1.0,2.0,2.0)
-    ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=20)
-    res = optimiseipeps(ipeps, key; f_tol = 1e-6)
-    e = minimum(res)
-    @test isapprox(e, -1.190, atol = 1e-3)
+    # Random.seed!(100)
+    # model = Heisenberg(1.0,2.0,2.0)
+    # ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=20)
+    # res = optimiseipeps(ipeps, key; f_tol = 1e-6)
+    # e = minimum(res)
+    # @test isapprox(e, -1.190, atol = 1e-3)
 
-    Random.seed!(100)
-    model = Heisenberg(2.0,0.5,0.5)
-    ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=20)
-    res = optimiseipeps(ipeps, key; f_tol = 1e-6)
-    e = minimum(res)
-    @test isapprox(e, -1.0208, atol = 1e-3)
+    # Random.seed!(100)
+    # model = Heisenberg(2.0,0.5,0.5)
+    # ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=20)
+    # res = optimiseipeps(ipeps, key; f_tol = 1e-6)
+    # e = minimum(res)
+    # @test isapprox(e, -1.0208, atol = 1e-3)
 end
