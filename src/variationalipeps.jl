@@ -46,15 +46,15 @@ function expectationvalue(h, ap, env::SquareVUMPSRuntime)
     n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs -> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
     n = ein"pprr -> "(n)[]
 
-    AC = ein"asc,cb -> asb"(AL,C)
-    _, FL4 = bigleftenv(AL, M)
-    _, FR4 = bigrightenv(AR, M)
-    e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
-    n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
-    n2 = ein"pprr -> "(n2)[]
+    # AC = ein"asc,cb -> asb"(AL,C)
+    # _, FL4 = bigleftenv(AL, M)
+    # _, FR4 = bigrightenv(AR, M)
+    # e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
+    # n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
+    # n2 = ein"pprr -> "(n2)[]
     # @show e/n e2/n2 (e/n+e2/n2)/2
 
-    return (e/n+e2/n2)/2
+    return e/n
 end
 
 """

@@ -54,6 +54,16 @@ end
     @test isapprox(Zygote.gradient(foo6, 1)[1], num_grad(foo6, 1), atol = 1e-5)
 end
 
+@testset "svd" begin
+    M = rand(10,10)
+    function foo6(x)
+        A = M .*x
+        u, s, v = svd(A)
+        return norm(u) + norm(s) + norm(v)
+    end
+    @test isapprox(Zygote.gradient(foo6, 1)[1], num_grad(foo6, 1), atol = 1e-5)
+end
+
 @testset "eigsolve and linsolve" begin
     Random.seed!(100)
     N = 1000

@@ -337,6 +337,16 @@ function Cenv(C, FL, FR;kwargs...)
     return real(λs[1]), real(Cs[1])
 end
 
+function safesvd(A)
+    u,s,v = svd(A)
+    phases = safesign.(u[1,:])
+    u *= Diagonal(phases)
+    v *= Diagonal(phases)
+    # rmul!(u, Diagonal(phases))
+    # rmul!(v, Diagonal(phases))
+    return u,s,v
+end
+
 """
     AL, AR, errL, errR = ACCtoALAR(AC, C) 
 
@@ -350,17 +360,29 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
 function ACCtoALAR(AC, C)
     D, d, = size(AC)
 
-    QAC, RAC = qrpos(reshape(AC,(D*d, D)))
-    QC, RC = qrpos(C)
-    AL = reshape(QAC*QC', (D, d, D))
-    errL = norm(RAC-RC)
-    # @show errL
+    uAC, sAC, vAC = safesvd(reshape(AC,(D*d, D)))
+    uC, sC, vC = safesvd(C)
+    AL = reshape(uAC*uC', (D, d, D))
+    errL = norm(Diagonal(sAC)*vAC'-Diagonal(sC)*vC')
+    # @show "svd" errL AL
 
-    LAC, QAC = lqpos(reshape(AC,(D, d*D)))
-    LC, QC = lqpos(C)
-    AR = reshape(QC'*QAC, (D, d, D))
-    errR = norm(LAC-LC)
-    # @show errR
+    uAC, sAC, vAC = safesvd(reshape(AC,(D, d*D)))
+    AR = reshape(vC*vAC', (D, d, D))
+    errR = norm(uAC*Diagonal(sAC)-uC*Diagonal(sC))
+    # @show "svd" errR
+
+    # QAC, RAC = qrpos(reshape(AC,(D*d, D)))
+    # QC, RC = qrpos(C)
+    # AL = reshape(QAC*QC', (D, d, D))
+    # errL = norm(RAC-RC)
+    # # @show "qr" errL AL
+
+    # LAC, QAC = lqpos(reshape(AC,(D, d*D)))
+    # LC, QC = lqpos(C)
+    # AR = reshape(QC'*QAC, (D, d, D))
+    # errR = norm(LAC-LC)
+    # # # @show "qr" errR
+
     return AL, AR, errL, errR
 end
 
