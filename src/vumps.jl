@@ -378,13 +378,14 @@ function ACCtoALAR(AC, C)
     # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
     # # @show "svd1",errR,AR[1:3]
 
+    κ = min(2,D)
     uACC, sACC, vACC = svd(reshape(AC,(D*d, D))*C')
-    AL = reshape(uACC*vACC', (D, d, D))
+    AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
     errL = norm(AC-ein"abc,cd -> abd"(AL,C))
-    # @show "svd2",errL,sACC
+    # @show "svd2",errL,κ,sACC
 
     uCAC, sCAC, vCAC = svd(C'*reshape(AC,(D, d*D)))
-    AR = reshape(uCAC*vCAC', (D, d, D))
+    AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
     errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
     # @show "svd2",errR,sCAC
 
