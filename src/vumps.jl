@@ -366,40 +366,41 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
 function ACCtoALAR(AC, C)
     D, d, = size(AC)
 
+    # κ = min(2,D)
     # uAC, sAC, vAC = safesvd1(reshape(AC,(D*d, D)))
     # uC, sC, vC = safesvd1(C)
-    # AL = reshape(uAC*uC', (D, d, D))
+    # AL = reshape(uAC[:,1:κ]*uC[:,1:κ]', (D, d, D))
     # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
     # # @show "svd1",errL,AL[1:3]
 
     # uAC, sAC, vAC = safesvd2(reshape(AC,(D, d*D)))
     # uC, sC, vC = safesvd2(C)
-    # AR = reshape(vC*vAC', (D, d, D))
+    # AR = reshape(vC[:,1:κ]*vAC[:,1:κ]', (D, d, D))
     # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
     # # @show "svd1",errR,AR[1:3]
 
-    κ = min(2,D)
-    uACC, sACC, vACC = svd(reshape(AC,(D*d, D))*C')
-    AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
-    errL = norm(AC-ein"abc,cd -> abd"(AL,C))
-    # @show "svd2",errL,κ,sACC
-
-    uCAC, sCAC, vCAC = svd(C'*reshape(AC,(D, d*D)))
-    AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
-    errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
-    # @show "svd2",errR,sCAC
-
-    # QAC, RAC = qrpos(reshape(AC,(D*d, D)))
-    # QC, RC = qrpos(C)
-    # AL = reshape(QAC*QC', (D, d, D))
+    # κ = min(2,D)
+    # uACC, sACC, vACC = svd(reshape(AC,(D*d, D))*C')
+    # AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
     # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
-    # # @show "qr",errL,AL[1:3]
+    # # @show "svd2",errL,κ,sACC
 
-    # LAC, QAC = lqpos(reshape(AC,(D, d*D)))
-    # LC, QC = lqpos(C)
-    # AR = reshape(QC'*QAC, (D, d, D))
+    # uCAC, sCAC, vCAC = svd(C'*reshape(AC,(D, d*D)))
+    # AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
     # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
-    # # @show "qr",errR,AR[1:3]
+    # # @show "svd2",errR,sCAC
+
+    QAC, RAC = qrpos(reshape(AC,(D*d, D)))
+    QC, RC = qrpos(C)
+    AL = reshape(QAC*QC', (D, d, D))
+    errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # @show "qr",errL,AL[1:3]
+
+    LAC, QAC = lqpos(reshape(AC,(D, d*D)))
+    LC, QC = lqpos(C)
+    AR = reshape(QC'*QAC, (D, d, D))
+    errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # @show "qr",errR,AR[1:3]
 
     return AL, AR, errL, errR
 end
