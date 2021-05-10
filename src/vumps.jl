@@ -337,13 +337,19 @@ function Cenv(C, FL, FR;kwargs...)
     return real(λs[1]), real(Cs[1])
 end
 
-function safesvd(A)
+function safesvd1(A)
     u,s,v = svd(A)
-    phases = safesign.(u[1,:])
+    phases = safesign.(Diagonal(v))
     u *= Diagonal(phases)
     v *= Diagonal(phases)
-    # rmul!(u, Diagonal(phases))
-    # rmul!(v, Diagonal(phases))
+    return u,s,v
+end
+
+function safesvd2(A)
+    u,s,v = svd(A)
+    phases = safesign.(Diagonal(u))
+    u *= Diagonal(phases)
+    v *= Diagonal(phases)
     return u,s,v
 end
 
@@ -360,28 +366,39 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
 function ACCtoALAR(AC, C)
     D, d, = size(AC)
 
-    uAC, sAC, vAC = safesvd(reshape(AC,(D*d, D)))
-    uC, sC, vC = safesvd(C)
-    AL = reshape(uAC*uC', (D, d, D))
-    errL = norm(Diagonal(sAC)*vAC'-Diagonal(sC)*vC')
-    # @show "svd" errL AL
+    # uAC, sAC, vAC = safesvd1(reshape(AC,(D*d, D)))
+    # uC, sC, vC = safesvd1(C)
+    # AL = reshape(uAC*uC', (D, d, D))
+    # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # # @show "svd1",errL,AL[1:3]
 
-    uAC, sAC, vAC = safesvd(reshape(AC,(D, d*D)))
-    AR = reshape(vC*vAC', (D, d, D))
-    errR = norm(uAC*Diagonal(sAC)-uC*Diagonal(sC))
-    # @show "svd" errR
+    # uAC, sAC, vAC = safesvd2(reshape(AC,(D, d*D)))
+    # uC, sC, vC = safesvd2(C)
+    # AR = reshape(vC*vAC', (D, d, D))
+    # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # # @show "svd1",errR,AR[1:3]
+
+    uACC, sACC, vACC = svd(reshape(AC,(D*d, D))*C')
+    AL = reshape(uACC*vACC', (D, d, D))
+    errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # @show "svd2",errL,sACC
+
+    uCAC, sCAC, vCAC = svd(C'*reshape(AC,(D, d*D)))
+    AR = reshape(uCAC*vCAC', (D, d, D))
+    errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # @show "svd2",errR,sCAC
 
     # QAC, RAC = qrpos(reshape(AC,(D*d, D)))
     # QC, RC = qrpos(C)
     # AL = reshape(QAC*QC', (D, d, D))
-    # errL = norm(RAC-RC)
-    # # @show "qr" errL AL
+    # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # # @show "qr",errL,AL[1:3]
 
     # LAC, QAC = lqpos(reshape(AC,(D, d*D)))
     # LC, QC = lqpos(C)
     # AR = reshape(QC'*QAC, (D, d, D))
-    # errR = norm(LAC-LC)
-    # # # @show "qr" errR
+    # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # # @show "qr",errR,AR[1:3]
 
     return AL, AR, errL, errR
 end

@@ -183,23 +183,23 @@ end
 
 @testset "vumps" begin
     Random.seed!(100)
-    # for β = 0.1:0.1:1.0
+    # for β = 0.1:0.1:0.9
     #     @show β 
-    #     @test isapprox(magnetisation(vumps_env(Ising(),β,10; verbose = true),Ising(),β), magofβ(Ising(),β), atol=1e-5)
+    #     @test isapprox(magnetisation(vumps_env(Ising(),β,10; verbose = true, tol = 1e-12),Ising(),β), magofβ(Ising(),β), atol=1e-5)
     # end
 
-    β,D = 0.5,10
+    β,D = 0.5,2
     foo1 = β -> -log(Z(vumps_env(Ising(),β,D; verbose = true)))
+    # for β = 0.1:0.1:1.0
+    #     @show β 
+    # # @test isapprox(Zygote.gradient(foo1,β)[1], energy(vumps_env(Ising(),β,D),Ising(), β), atol = 1e-6)
+    #     @test isapprox(Zygote.gradient(foo1,β)[1], num_grad(foo1,β), atol = 1e-9)
+    # end
+
+    foo2 = β -> magnetisation(vumps_env(Ising(),β,D; verbose = true), Ising(), β)
     for β = 0.1:0.1:1.0
         @show β 
-    # @test isapprox(Zygote.gradient(foo1,β)[1], energy(vumps_env(Ising(),β,D),Ising(), β), atol = 1e-6)
-        @test isapprox(Zygote.gradient(foo1,β)[1], num_grad(foo1,β), atol = 1e-9)
+    # @test isapprox(num_grad(foo2,β), magofdβ(Ising(),β), atol = 1e-3)
+        @test isapprox(Zygote.gradient(foo2,β)[1], magofdβ(Ising(),β), atol = 1e-6)
     end
-
-    foo2 = β -> magnetisation(vumps_env(Ising(),β,D), Ising(), β)
-    # for β = 0.1:0.1:1.0
-    #     @show β 
-    # # @test isapprox(num_grad(foo2,β), magofdβ(Ising(),β), atol = 1e-3)
-    #     @test isapprox(Zygote.gradient(foo2,β)[1], magofdβ(Ising(),β), atol = 1e-6)
-    # end
 end
