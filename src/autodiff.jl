@@ -48,7 +48,7 @@ dAL  =  - FL ── M ── ξl   -   FL ── M ── ξl
 ```
 """
 function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
-    λl, FL = leftenv(AL, M, FL; kwargs...)
+    λl, FL = leftenv(AL, M, FL)
     # @show λl
     function back((dλ, dFL))
         ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λl, 1)
@@ -79,7 +79,7 @@ dAR  =   ξr ── M ── FR   +   ξr ── M ── FR
 ```
 """
 function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-    λr, FR = rightenv(AR, M, FR; kwargs...)
+    λr, FR = rightenv(AR, M, FR)
     # @show λr
     function back((dλ, dFR))
         ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λr, 1)
@@ -117,7 +117,7 @@ dFR  =   FL ── M ──
 """
 function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; 
     kwargs...) where {T}
-    λAC, AC = ACenv(AC, FL, M, FR; kwargs...)
+    λAC, AC = ACenv(AC, FL, M, FR)
     # @show λAC
     function back((dλ, dAC))
         ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1)
@@ -149,7 +149,7 @@ dFR  =   FL ───────
 ```
 """
 function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-    λC, C = Cenv(C, FL, FR; kwargs...)
+    λC, C = Cenv(C, FL, FR)
     # @show λC
     function back((dλ, dC))
         ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, -λC, 1)
@@ -212,8 +212,8 @@ function ChainRulesCore.rrule(::typeof(bigleftenv), AL::AbstractArray{T}, M::Abs
     # @show λl
     function back((dλl, dFL4))
         ξl, info = linsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AL,M,M,conj(AL)), dFL4, -λl, 1)
-        # errL = ein"abc,cba ->"(FL, ξl)[]
-        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        errL = ein"abc,cba ->"(FL, ξl)[]
+        abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"dcba,ckge,bjhk,aji,fghi -> def"(FL4, M, M, AL, ξl) -ein"dcba,def,ckge,bjhk,fghi -> aji"(FL4, AL, M, M, ξl)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(FL4, AL, M, AL, ξl) -ein"dcba,def,ckge,aji,fghi -> bjhk"(FL4, AL, M, AL, ξl)
         return NO_FIELDS, dAL, dM, NO_FIELDS...
@@ -247,8 +247,8 @@ function ChainRulesCore.rrule(::typeof(bigrightenv), AR::AbstractArray{T}, M::Ab
     # @show λr
     function back((dλ, dFR4))
         ξr, info = linsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AR,M,M,conj(AR)), dFR4, -λr, 1)
-        # errR = ein"abc,cba ->"(ξr, FR)[]
-        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
+        errR = ein"abc,cba ->"(ξr, FR)[]
+        abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"dcba,ckge,bjhk,aji,fghi -> def"(ξr, M, M, AR,FR4) -ein"dcba,def,ckge,bjhk,fghi -> aji"(ξr, AR, M, M, FR4)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(ξr, AR, M, AR, FR4) -ein"dcba,def,ckge,aji,fghi -> bjhk"(ξr, AR, M, AR, FR4)
         return NO_FIELDS, dAR, dM, NO_FIELDS...

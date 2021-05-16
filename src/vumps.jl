@@ -92,12 +92,12 @@ function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Int, verbose = false)
     olderror = Inf
 
     stopfun = StopFunction(olderror, -1, tol, maxiter)
-    rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror, tol), stopfun)
+    rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror), stopfun)
     verbose && println("vumps done@step: $(stopfun.counter), error=$(err)")
     return rt
 end
 
-function vumpstep(rt::VUMPSRuntime,err,tol)
+function vumpstep(rt::VUMPSRuntime,err)
     # global backratio = 1.0
     # Zygote.@ignore print(round(-log(10,backratio)),' ')
     M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
@@ -116,7 +116,7 @@ function vumpstep(rt::VUMPSRuntime,err,tol)
     # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
 
     err = error(AL,C,FL,M,FR)
-    return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err, tol
+    return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
 end
 
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
@@ -220,8 +220,8 @@ provided.
     ─ AR─┘     ──┘  
 ````
 """
-function rightorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, kwargs...)
-    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol, kwargs...)
+function rightorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
+    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol,maxiter = maxiter, kwargs...)
     return permutedims(C,(2,1)), permutedims(AL,(3,2,1)), λ
 end
 
@@ -240,6 +240,14 @@ FL─ M ─  = λL FL─
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
+        @show λs
+        if real(λs[1]) > 0
+            return real(λs[1]), real(FLs[1])
+        else
+            return real(λs[2]), real(FLs[2])
+        end
+    end
     return real(λs[1]), real(FLs[1])
 end
 
@@ -258,6 +266,14 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
+        @show λs
+        if real(λs[1]) > 0
+            return real(λs[1]), real(FRs[1])
+        else
+            return real(λs[2]), real(FRs[2])
+        end
+    end
     return real(λs[1]), real(FRs[1])
 end
 
@@ -318,6 +334,14 @@ FL─ M ──FR  =  λAC  │   │   │
 """
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
+        @show λs
+        if real(λs[1]) > 0
+            return real(λs[1]), real(ACs[1])
+        else
+            return real(λs[2]), real(ACs[2])
+        end
+    end
     return real(λs[1]), real(ACs[1])
 end
 
@@ -334,6 +358,14 @@ FL─── FR  =  λC  │     │
 """
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
+        @show λs
+        if real(λs[1]) > 0
+            return real(λs[1]), real(Cs[1])
+        else
+            return real(λs[2]), real(Cs[2])
+        end
+    end
     return real(λs[1]), real(Cs[1])
 end
 
