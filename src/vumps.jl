@@ -84,7 +84,7 @@ end
 function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int; verbose = false) where T
     env = load(chkp_file)["env"]
     verbose && print("vumps environment load from $(chkp_file) -> ")   
-    AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
+    env.AL,env.C,env.AR,env.FL,env.FR
 end
 
 function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Int, verbose = false)
@@ -103,11 +103,12 @@ function vumpstep(rt::VUMPSRuntime,err)
     M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
     _, AC = ACenv(AC, FL, M, FR)
-    _, C = Cenv(C, FL, FR)
+    _, C = Cenv(C, FL, FR) 
     AL, AR, _, _ = ACCtoALAR(AC, C)
     _, FL = leftenv(AL, M, FL)
     _, FR = rightenv(AR, M, FR)
 
+    ##### avoid gradient explosion for too many iterations #####
     # M = backratio .* M + Zygote.@ignore (1-backratio) .* M
     # AL = backratio .* AL + Zygote.@ignore (1-backratio) .* AL
     # C = backratio .* C +  Zygote.@ignore (1-backratio) .* C
@@ -240,14 +241,14 @@ FL─ M ─  = λL FL─
 """
 function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
-        @show λs
-        if real(λs[1]) > 0
-            return real(λs[1]), real(FLs[1])
-        else
-            return real(λs[2]), real(FLs[2])
-        end
-    end
+    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    #     @show λs
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(FLs[1])
+    #     else
+    #         return real(λs[2]), real(FLs[2])
+    #     end
+    # end
     return real(λs[1]), real(FLs[1])
 end
 
@@ -266,14 +267,14 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 """
 function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
-        @show λs
-        if real(λs[1]) > 0
-            return real(λs[1]), real(FRs[1])
-        else
-            return real(λs[2]), real(FRs[2])
-        end
-    end
+    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    #     @show λs
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(FRs[1])
+    #     else
+    #         return real(λs[2]), real(FRs[2])
+    #     end
+    # end
     return real(λs[1]), real(FRs[1])
 end
 
@@ -334,14 +335,14 @@ FL─ M ──FR  =  λAC  │   │   │
 """
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
-        @show λs
-        if real(λs[1]) > 0
-            return real(λs[1]), real(ACs[1])
-        else
-            return real(λs[2]), real(ACs[2])
-        end
-    end
+    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    #     @show λs
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(ACs[1])
+    #     else
+    #         return real(λs[2]), real(ACs[2])
+    #     end
+    # end
     return real(λs[1]), real(ACs[1])
 end
 
@@ -358,14 +359,14 @@ FL─── FR  =  λC  │     │
 """
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-5
-        @show λs
-        if real(λs[1]) > 0
-            return real(λs[1]), real(Cs[1])
-        else
-            return real(λs[2]), real(Cs[2])
-        end
-    end
+    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    #     @show λs
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(Cs[1])
+    #     else
+    #         return real(λs[2]), real(Cs[2])
+    #     end
+    # end
     return real(λs[1]), real(Cs[1])
 end
 

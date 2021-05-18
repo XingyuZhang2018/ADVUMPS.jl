@@ -52,8 +52,8 @@ function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::Abstra
     # @show λl
     function back((dλ, dFL))
         ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λl, 1)
-        errL = ein"abc,cba ->"(FL, ξl)[]
-        abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        # errL = ein"abc,cba ->"(FL, ξl)[]
+        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL, M, conj(AL), ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL, M, AL, ξl)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AL, conj(AL), ξl)
         return NO_FIELDS, dAL, dM, NO_FIELDS...
@@ -83,8 +83,8 @@ function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::Abstr
     # @show λr
     function back((dλ, dFR))
         ξr, info = linsolve(FL -> ein"ηpβ,γcη,csap,γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λr, 1)
-        errR = ein"abc,cba ->"(ξr, FR)[]
-        abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
+        # errR = ein"abc,cba ->"(ξr, FR)[]
+        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr, M, conj(AR), FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr, M, AR, FR)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr, AR, conj(AR), FR)
         return NO_FIELDS, dAR, dM, NO_FIELDS...
@@ -121,8 +121,8 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     # @show λAC
     function back((dλ, dAC))
         ξ, info = linsolve(AC -> ein"αaγ,αsβ,asbp,ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1)
-        errAC = ein"abc,abc ->"(AC, ξ)[]
-        abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
+        # errAC = ein"abc,abc ->"(AC, ξ)[]
+        # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
         dFL = -ein"ηpβ,βaα,csap,γsα -> γcη"(AC, FR, M, ξ)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AC, ξ, FR)
         dFR = -ein"ηpβ,γcη,csap,γsα -> βaα"(AC, FL, M, ξ)
@@ -153,8 +153,8 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
     # @show λC
     function back((dλ, dC))
         ξ, info = linsolve(C -> ein"αaγ,αβ,ηaβ -> γη"(FL, C, FR), dC, -λC, 1)
-        errC = ein"ab,ab ->"(C, ξ)[]
-        abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
+        # errC = ein"ab,ab ->"(C, ξ)[]
+        # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"ηβ,βaα,γα -> γaη"(C, FR, ξ)
         dFR = -ein"ηβ,γcη,γα -> βcα"(C, FL, ξ)
@@ -212,8 +212,8 @@ function ChainRulesCore.rrule(::typeof(bigleftenv), AL::AbstractArray{T}, M::Abs
     # @show λl
     function back((dλl, dFL4))
         ξl, info = linsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AL,M,M,conj(AL)), dFL4, -λl, 1)
-        errL = ein"abc,cba ->"(FL, ξl)[]
-        abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        # errL = ein"abc,cba ->"(FL4, ξl)[]
+        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"dcba,ckge,bjhk,aji,fghi -> def"(FL4, M, M, AL, ξl) -ein"dcba,def,ckge,bjhk,fghi -> aji"(FL4, AL, M, M, ξl)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(FL4, AL, M, AL, ξl) -ein"dcba,def,ckge,aji,fghi -> bjhk"(FL4, AL, M, AL, ξl)
         return NO_FIELDS, dAL, dM, NO_FIELDS...
@@ -247,8 +247,8 @@ function ChainRulesCore.rrule(::typeof(bigrightenv), AR::AbstractArray{T}, M::Ab
     # @show λr
     function back((dλ, dFR4))
         ξr, info = linsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AR,M,M,conj(AR)), dFR4, -λr, 1)
-        errR = ein"abc,cba ->"(ξr, FR)[]
-        abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
+        # errR = ein"abc,cba ->"(ξr, FR4)[]
+        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"dcba,ckge,bjhk,aji,fghi -> def"(ξr, M, M, AR,FR4) -ein"dcba,def,ckge,bjhk,fghi -> aji"(ξr, AR, M, M, FR4)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(ξr, AR, M, AR, FR4) -ein"dcba,def,ckge,aji,fghi -> bjhk"(ξr, AR, M, AR, FR4)
         return NO_FIELDS, dAR, dM, NO_FIELDS...

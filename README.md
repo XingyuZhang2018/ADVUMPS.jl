@@ -15,7 +15,7 @@ The key point to implement AD for VUMPS is to get adjoint of eigsolve, which hav
 This package used [TensorNetworkAD.jl](https://github.com/under-Peter/TensorNetworkAD.jl) for reference.
 ## install
 ```shell
-> git clone https://github.com/XingyuZhang2018/ADVUMPS
+> git clone https://github.com/XingyuZhang2018/ADVUMPS.jl
 ```
 move to the file and run `julia REPL`, press `]` into `Pkg REPL`
 ```julia
@@ -64,7 +64,7 @@ julia> typeof(env)
 SquareVUMPSRuntime{Float64, Array{Float64, 4}, Array{Float64, 3}, Matrix{Float64}} (alias for VUMPSRuntime{SquareLattice, Float64, 4, Array{Float64, 4}, Array{Float64, 3}, Array{Float64, 2}})
 ```
 Using the `Z` function, we can calculate the partition function of the model per site:
-```
+```julia
 julia> Z(env)
 2.7893001925286596
 ```
