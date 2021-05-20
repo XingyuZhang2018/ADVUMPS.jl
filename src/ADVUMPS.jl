@@ -10,6 +10,7 @@ export Ising, TFIsing, Heisenberg
 export init_ipeps, optimiseipeps
 
 include("hamiltonianmodels.jl")
+include("cuda_patch.jl")
 include("vumps.jl")
 include("exampletensors.jl")
 include("fixedpoint.jl")

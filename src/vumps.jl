@@ -120,7 +120,10 @@ function vumpstep(rt::VUMPSRuntime,err)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
 end
 
+#https://github.com/JuliaGPU/CuArrays.jl/issues/283
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
+CUDA.@cufunc safesign(x::CublasFloat) = iszero(x) ? one(x) : x/abs(x)
+
 """
     qrpos(A)
 
@@ -129,8 +132,9 @@ is guaranteed to have positive diagonal elements.
 """
 qrpos(A) = qrpos!(copy(A))
 function qrpos!(A)
-    F = qr!(A)
-    Q = Matrix(F.Q)
+    mattype = _mattype(A)
+    F = qr!(mattype(A))
+    Q = mattype(F.Q)
     R = F.R
     phases = safesign.(diag(R))
     rmul!(Q, Diagonal(phases))
@@ -146,9 +150,10 @@ is guaranteed to have positive diagonal elements.
 """
 lqpos(A) = lqpos!(copy(A))
 function lqpos!(A)
-    F = qr!(Matrix(A'))
-    Q = Matrix(Matrix(F.Q)')
-    L = Matrix(F.R')
+    mattype = _mattype(A)
+    F = qr!(mattype(A'))
+    Q = mattype(mattype(F.Q)')
+    L = mattype(F.R')
     phases = safesign.(diag(L))
     lmul!(Diagonal(phases), Q)
     rmul!(L, Diagonal(conj!(phases)))
@@ -168,7 +173,7 @@ provided.
 ```
 
 """
-function leftorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
+function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
     λ2s, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
         ρE = ein"cd,dsb,csa -> ab"(ρ, A, conj(A))
         return ρE

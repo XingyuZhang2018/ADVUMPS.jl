@@ -5,31 +5,36 @@ using Random
 using Test
 using OMEinsum
 using Zygote
+using BenchmarkTools
+using CUDA
+using KrylovKit
 
-@testset "qr" begin
-    A = rand(ComplexF64,4,4)
+@testset "qr with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float32, Float64]
+    Random.seed!(3)
+    A = atype(rand(dtype, 4,4))
     Q, R = qrpos(A)
     @test Array(Q*R) ≈ Array(A)
     @test all(real.(diag(R)) .> 0)
     @test all(imag.(diag(R)) .≈ 0)
 end
 
-@testset "lq" begin
-    A = rand(ComplexF64,4,4)
+@testset "lq with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float32, Float64]
+    Random.seed!(3)
+    A = atype(rand(dtype, 4,4))
     L, Q = lqpos(A)
     @test Array(L*Q) ≈ Array(A)
     @test all(real.(diag(L)) .> 0)
     @test all(imag.(diag(L)) .≈ 0)
 end
 
-@testset "leftorth" begin
+@testset "leftorth with $atype{$dtype}" for atype in [CuArray, Array], dtype in [Float32, Float64]
+    Random.seed!(100)
     d = 2
     D = 10
     A = rand(Float64,D,d,D)
     AL, C, λ = leftorth(A)
 
     M = ein"cda,cdb -> ab"(AL,conj(AL))
-    # @tensor M[-1, -2] := AL[1,2,-1]*conj(AL[1,2,-2])
     @test (Array(M) ≈ I(D))
 
     CA = reshape(C * reshape(A, D, d*D), d*D, D)
