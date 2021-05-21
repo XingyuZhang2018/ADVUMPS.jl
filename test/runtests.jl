@@ -12,19 +12,24 @@ using Test
         include("exampletensors.jl")
     end
 
-    @testset "autodiff" begin
-        println("autodiff tests running...")
-        include("autodiff.jl")
-    end
-
     @testset "fixedpoint" begin
         println("fixedpoint tests running...")
         include("fixedpoint.jl")
     end
 
-    @testset "vumps" begin
-        println("vumps tests running...")
-        include("vumps.jl")
+    @testset "environment" begin
+        println("environment tests running...")
+        include("environment.jl")
+    end
+
+    @testset "vumpsruntime" begin
+        println("vumpsruntime tests running...")
+        include("vumpsruntime.jl")
+    end
+
+    @testset "autodiff" begin
+        println("autodiff tests running...")
+        include("autodiff.jl")
     end
 
     @testset "variationalipeps" begin

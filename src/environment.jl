@@ -1,125 +1,6 @@
 using LinearAlgebra
 using KrylovKit
 
-export AbstractLattice, SquareLattice
-abstract type AbstractLattice end
-struct SquareLattice <: AbstractLattice end
-
-export VUMPSRuntime, SquareVUMPSRuntime
-
-# NOTE: should be renamed to more explicit names
-"""
-    VUMPSRuntime{LT}
-
-a struct to hold the tensors during the `vumps` algorithm, containing
-- `d × d × d × d` `M` tensor
-- `D × d × D` `AL` tensor
-- `D × D`     `C` tensor
-- `D × d × D` `AR` tensor
-- `D × d × D` `FL` tensor
-- `D × d × D` `FR` tensor
-and `LT` is a AbstractLattice to define the lattice type.
-"""
-struct VUMPSRuntime{LT,T,N,AT<:AbstractArray{T,N},ET,CT}
-    M::AT
-    AL::ET
-    C::CT
-    AR::ET
-    FL::ET
-    FR::ET
-    function VUMPSRuntime{LT}(M::AT, AL::AbstractArray{T}, C::AbstractArray{T}, AR::AbstractArray{T},
-        FL::AbstractArray{T}, FR::AbstractArray{T}) where {LT<:AbstractLattice,T,N,AT<:AbstractArray{T,N}}
-        new{LT,T,N,AT,typeof(AL),typeof(C)}(M,AL,C,AR,FL,FR)
-    end
-end
-
-const SquareVUMPSRuntime{T,AT} = VUMPSRuntime{SquareLattice,T,4,AT}
-SquareVUMPSRuntime(M::AT,AL,C,AR,FL,FR) where {T,AT<:AbstractArray{T, 4}} = VUMPSRuntime{SquareLattice}(M,AL,C,AR,FL,FR)
-
-getD(rt::VUMPSRuntime) = size(rt.AL, 1)
-getd(rt::VUMPSRuntime) = size(rt.M, 1)
-
-@doc raw"
-    SquareVUMPSRuntime(M::AbstractArray{T,4}, env::Val, χ::Int)
-
-create a `SquareVUMPSRuntime` with M-tensor `M`. The AL,C,AR,FL,FR
-tensors are initialized according to `env`. If `env = Val(:random)`,
-the A is initialized as a random D×d×D tensor,and AL,C,AR are the corresponding 
-canonical form. FL,FR is the left and right environment:
-```
-┌── AL─       ┌──        ─ AR──┐         ──┐    
-│   │         │            │   │           │      
-FL─ M ─  = λL FL─        ─ M ──FR   = λR ──FR   
-│   │         │            │   │           │      
-┕── AL─       ┕──        ─ AR──┘         ──┘  
-```
-
-# example
-
-```jldoctest; setup = :(using ADVUMPS)
-julia> rt = SquareVUMPSRuntime(randn(2,2,2,2), Val(:random), 4);
-
-julia> size(rt.AL) == (4,2,4)
-true
-
-julia> size(rt.C) == (4,4)
-true
-```
-"
-function SquareVUMPSRuntime(M::AbstractArray{T,4}, env, D::Int; verbose = false) where T
-    return SquareVUMPSRuntime(M, _initializect_square(M, env, D; verbose = verbose)...)
-end
-
-function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int; verbose = false) where T
-    d = size(M,1)
-    A = rand(T,D,d,D)
-    AL, = leftorth(A)
-    C, AR = rightorth(AL)
-    _, FL = leftenv(AL, M)
-    _, FR = rightenv(AR, M)
-    verbose && print("random initial vumps environment-> ")
-    AL,C,AR,FL,FR
-end
-
-function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int; verbose = false) where T
-    env = load(chkp_file)["env"]
-    verbose && print("vumps environment load from $(chkp_file) -> ")   
-    env.AL,env.C,env.AR,env.FL,env.FR
-end
-
-function vumps(rt::VUMPSRuntime; tol::Real, maxiter::Int, verbose = false)
-    # initialize
-    olderror = Inf
-
-    stopfun = StopFunction(olderror, -1, tol, maxiter)
-    rt, err = fixedpoint(res->vumpstep(res...), (rt, olderror), stopfun)
-    verbose && println("vumps done@step: $(stopfun.counter), error=$(err)")
-    return rt
-end
-
-function vumpstep(rt::VUMPSRuntime,err)
-    # global backratio = 1.0
-    # Zygote.@ignore print(round(-log(10,backratio)),' ')
-    M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
-    AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
-    _, AC = ACenv(AC, FL, M, FR)
-    _, C = Cenv(C, FL, FR) 
-    AL, AR, _, _ = ACCtoALAR(AC, C)
-    _, FL = leftenv(AL, M, FL)
-    _, FR = rightenv(AR, M, FR)
-
-    ##### avoid gradient explosion for too many iterations #####
-    # M = backratio .* M + Zygote.@ignore (1-backratio) .* M
-    # AL = backratio .* AL + Zygote.@ignore (1-backratio) .* AL
-    # C = backratio .* C +  Zygote.@ignore (1-backratio) .* C
-    # AR = backratio .* AR + Zygote.@ignore (1-backratio) .* AR
-    # FL = backratio .* FL + Zygote.@ignore (1-backratio) .* FL
-    # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
-
-    err = error(AL,C,FL,M,FR)
-    return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
-end
-
 #https://github.com/JuliaGPU/CuArrays.jl/issues/283
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
 CUDA.@cufunc safesign(x::CublasFloat) = iszero(x) ? one(x) : x/abs(x)
@@ -174,7 +55,7 @@ provided.
 
 """
 function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
-    λ2s, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
+    _, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
         ρE = ein"cd,dsb,csa -> ab"(ρ, A, conj(A))
         return ρE
     end
@@ -194,7 +75,7 @@ function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 
     numiter = 1
     while norm(C-R) > tol && numiter < maxiter
         # C = R
-        λs, Cs, info = eigsolve(R, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do X
+        _, Cs, info = eigsolve(R, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do X
             Y = ein"cd,dsb,csa -> ab"(X,A,conj(AL))
             return Y
         end
@@ -226,7 +107,7 @@ provided.
     ─ AR─┘     ──┘  
 ````
 """
-function rightorth(A, C = Matrix{eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
+function rightorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
     AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol,maxiter = maxiter, kwargs...)
     return permutedims(C,(2,1)), permutedims(AL,(3,2,1)), λ
 end
@@ -244,8 +125,8 @@ FL─ M ─  = λL FL─
 ┕── AL─       ┕──        
 ```
 """
-function leftenv(AL, M, FL = rand(eltype(AL), size(AL,1), size(M,1), size(AL,1)); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)),FL, 1, :LM; ishermitian = false, kwargs...)
+function leftenv(AL, M, FL = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(AL,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -270,7 +151,7 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
  ─ AR──┘         ──┘  
 ```
 """
-function rightenv(AR, M, FR = randn(eltype(AR), size(AR,1), size(M,3), size(AR,1)); kwargs...)
+function rightenv(AR, M, FR = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(AR,1))); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
@@ -299,7 +180,7 @@ FL4 │    = λL FL4
 ┕── AL─       ┕──        
 ```
 """
-function bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
+function bigleftenv(AL, M, FL4 = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1))); kwargs...)
     λFL4s, FL4s, info = eigsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFL4s
     return real(λFL4s[1]), real(FL4s[1])
@@ -320,7 +201,7 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
  ─ AR──┘         ──┘ 
 ```
 """
-function bigrightenv(AR, M, FR4 = randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1)); kwargs...)
+function bigrightenv(AR, M, FR4 = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1))); kwargs...)
     λFR4s, FR4s, info = eigsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFR4s
     return real(λFR4s[1]), real(FR4s[1])
@@ -427,5 +308,5 @@ function error(AL,C,FL,M,FR)
     AC = ein"asc,cb -> asb"(AL,C)
     MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
     MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
-    err = norm(MAC)
+    norm(MAC)
 end
