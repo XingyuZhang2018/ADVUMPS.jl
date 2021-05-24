@@ -11,6 +11,13 @@ using KrylovKit
 @Zygote.nograd load
 @Zygote.nograd error
 
+# function ChainRulesCore.rrule(::typeof(Base.getindex),arr::CuArray)   
+#     function back(dy)     
+#         return NO_FIELDS,OMEinsum.asarray(dy, arr)
+#     end           
+#     return getindex(arr), back
+# end 
+
 # patch since it's currently broken otherwise
 function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
     y = Base.typed_hvcat(T, rows, xs...)
@@ -169,7 +176,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(dQ)(Symmetric(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -179,7 +186,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(dL)(Symmetric(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back
@@ -284,9 +291,10 @@ true
 ```
 "
 function num_grad(f, a::AbstractArray; δ::Real=1e-5)
-    df = map(CartesianIndices(a)) do i
-        foo = x -> (ac = copy(a); ac[i] = x; f(ac))
-        num_grad(foo, a[i], δ=δ)
+    b = Array(copy(a))
+    df = map(CartesianIndices(b)) do i
+        foo = x -> (ac = copy(b); ac[i] = x; f(_arraytype(a)(ac)))
+        num_grad(foo, b[i], δ=δ)
     end
     return _arraytype(a)(df)
     # map(CartesianIndices(a)) do i

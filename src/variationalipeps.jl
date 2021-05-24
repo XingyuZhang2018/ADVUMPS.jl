@@ -15,7 +15,6 @@ function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, ma
     ap = ein"abcdx,ijkly -> aibjckdlxy"(ipeps.bulk, conj(ipeps.bulk))
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
-
     folder = "./data/$(model)/"
     mkpath(folder)
     chkp_file = folder*"vumps_env_D$(D)_chi$(χ).jld2"
@@ -24,7 +23,6 @@ function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, ma
     else
         rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
     end
-
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
     save(chkp_file, "env", env)
     e = expectationvalue(h, ap, env)
@@ -42,9 +40,9 @@ function expectationvalue(h, ap, env::SquareVUMPSRuntime)
     M,AL,C,AR,FL,FR = env.M,env.AL,env.C,env.AR,env.FL,env.FR
     ap /= norm(ap)
 
-    e = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs,pqrs -> "(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap,h)[]
-    n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs -> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
-    n = ein"pprr -> "(n)[]
+    e = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs,pqrt -> st"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap,h)
+    n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs-> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
+    n = ein"pprs -> rs"(n)
 
     # AC = ein"asc,cb -> asb"(AL,C)
     # _, FL4 = bigleftenv(AL, M)
@@ -54,7 +52,7 @@ function expectationvalue(h, ap, env::SquareVUMPSRuntime)
     # n2 = ein"pprr -> "(n2)[]
     # @show e/n e2/n2 (e/n+e2/n2)/2
 
-    return e/n
+    return safetr(e)/safetr(n)
 end
 
 """
@@ -63,7 +61,7 @@ end
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
+function init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true, atype = Array)
     folder = "./data/$(model)/"
     mkpath(folder)
     key = (model, D, χ, tol, maxiter)
@@ -89,13 +87,13 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20)) where LT
+function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20), atype = Array) where LT
     model, D, χ, tol, maxiter = key
-    h = hamiltonian(model)
+    h = atype(hamiltonian(model))
     to = TimerOutput()
-    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-    ff(x) = real(energy(h, model, IPEPS{LT}(x); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-    g(x) = @timeit to "backward" Zygote.gradient(ff,x)[1]
+    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(atype(x)); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    ff(x) = real(energy(h, model, IPEPS{LT}(atype(x)); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps.bulk, optimmethod,inplace = false,
         Optim.Options(f_tol=f_tol,

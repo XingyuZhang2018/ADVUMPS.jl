@@ -30,9 +30,9 @@ return the partition function of the `env`.
 function Z(env::SquareVUMPSRuntime)
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     AC = ein"asc,cb -> asb"(AL,C)
-    z = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
-    λ = ein"αcβ,βη,ηcγ,αγ ->"(FL,C,FR,conj(C))[]
-    return z/λ
+    z = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
+    λ = ein"acβ,βη,ηcγ,bγ -> ab"(FL,C,FR,conj(C))
+    return safetr(z)/safetr(λ)
 end
 
 """
@@ -44,10 +44,9 @@ function magnetisation(env::SquareVUMPSRuntime, model::MT, β) where {MT <: Hami
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Mag = _arraytype(M)(mag_tensor(model, β))
     AC = ein"asc,cb -> asb"(AL,C)
-    mag = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Mag,FR,conj(AC))[]
-    λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
-
-    return abs(mag/λ)
+    mag = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,Mag,FR,conj(AC))
+    λ = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
+    return abs(safetr(mag)/safetr(λ))
 end
 
 """
@@ -61,10 +60,9 @@ function energy(env::SquareVUMPSRuntime, model::MT, β) where {MT <: Hamiltonian
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Ene = _arraytype(M)(energy_tensor(model, β))
     AC = ein"asc,cb -> asb"(AL,C)
-    energy = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,Ene,FR,conj(AC))[]
-    λ = ein"αcβ,βsη,cpds,ηdγ,αpγ ->"(FL,AC,M,FR,conj(AC))[]
-
-    return energy/λ*2 # factor 2 for counting horizontal and vertical links
+    energy = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,Ene,FR,conj(AC))
+    λ = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
+    return safetr(energy)/safetr(λ)*2 # factor 2 for counting horizontal and vertical links
 end
 
 """

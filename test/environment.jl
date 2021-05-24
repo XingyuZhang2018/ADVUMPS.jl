@@ -92,22 +92,6 @@ end
     _, AR = rightorth(A)
     λR,FR = rightenv(AR, M)
     @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))
-    # S = rand(D,d,D,D,d,D)
-    # function foo2(β)
-    #     M = model_tensor(Ising(),β)
-    #     λL,FL = leftenv(AL, M)
-    #     return ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)[]/ein"γcη,ηcγ -> "(FL,FL)[]
-    # end 
-    # @test isapprox(Zygote.gradient(foo2, 1)[1],num_grad(foo2, 1), atol = 1e-9)
-
-    
-    # S = rand(D,d,D,D,d,D)
-    # function foo3(β)
-    #     M = model_tensor(Ising(),β)
-    #     λL,FR = rightenv(AR, M)
-    #     return ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)[]/ein"γcη,ηcγ -> "(FR,FR)[]
-    # end
-    # @test isapprox(Zygote.gradient(foo3, 1)[1],num_grad(foo3, 1), atol = 1e-9)
 end
 
 @testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
@@ -149,21 +133,5 @@ end
     C, AR = rightorth(A)
     λR,FR4 = bigrightenv(AR, M)
     @test λR * FR4 ≈ ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR))
-
-    # S = rand(D,d,d,D,D,d,d,D)
-    # function foo(β)
-    #     M = model_tensor(Ising(),β)
-    #     λL,FL4 = bigleftenv(AL, M)
-    #     return ein"abcd,abcdefgh,efgh -> "(FL4,S,FL4)[]/ein"abcd,abcd -> "(FL4,FL4)[]
-    # end 
-    # @test isapprox(Zygote.gradient(foo, 1)[1],num_grad(foo, 1), atol = 1e-9)
-
-    # S = rand(D,d,d,D,D,d,d,D)
-    # function foo(β)
-    #     M = model_tensor(Ising(),β)
-    #     λR,FR4 = bigrightenv(AR, M)
-    #     return ein"abcd,abcdefgh,efgh -> "(FR4,S,FR4)[]/ein"abcd,abcd -> "(FR4,FR4)[]
-    # end
-    # @test isapprox(Zygote.gradient(foo, 1)[1],num_grad(foo, 1), atol = 1e-9)
 end
 
