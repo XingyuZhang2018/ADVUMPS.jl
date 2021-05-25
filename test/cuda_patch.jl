@@ -8,30 +8,27 @@ using BenchmarkTools
 using TensorOperations
 CUDA.allowscalar(false)
 
-@testset "OMEinsum with $atype{$dtype} " for atype in [CuArray, Array], dtype in [Float64]
+@testset "OMEinsum with $atype{$dtype} " for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
     d = 9
-    D = 50
+    D = 20
     AL = atype(rand(dtype, D, d, D))
     M = atype(rand(dtype, d, d, d, d))
     FL = atype(rand(dtype, D, d, D))
     @time ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL))
 end
 
-@testset "KrylovKit with $atype{$dtype}" for atype in [CuArray, Array], dtype in [Float64]
+@testset "KrylovKit with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
-    D = 2^20
-    function A(x)
-        x .- sum(x)
-    end
-    rhs = atype(rand(dtype, D))
-    @time linsolve(A, rhs)
-
     d = 16
-    D = 50
+    D = 30
     FL = atype(rand(dtype, D, d, D))
     M = atype(rand(dtype, d, d, d, d))
     AL = atype(rand(dtype, D, d, D))
-    @time eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false)
+    @time λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false)
+
+    λl,FL = real(λs[1]),real(FLs[1])
+    dFL = atype(rand(dtype, D, d, D))
+    @time ξl, info = linsolve(FR -> ein"ηpβ,βaα,csap,γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λl, 1)
 end
  

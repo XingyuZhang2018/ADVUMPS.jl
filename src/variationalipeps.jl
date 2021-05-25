@@ -87,7 +87,7 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, verbose= false, optimmethod = LBFGS(m = 20), atype = Array) where LT
+function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20), atype = Array) where LT
     model, D, χ, tol, maxiter = key
     h = atype(hamiltonian(model))
     to = TimerOutput()
@@ -96,7 +96,7 @@ function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, verbose= false, opti
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps.bulk, optimmethod,inplace = false,
-        Optim.Options(f_tol=f_tol,
+        Optim.Options(f_tol=f_tol, iterations=opiter,
         extended_trace=true,
         callback=os->writelog(os, key)),
         )

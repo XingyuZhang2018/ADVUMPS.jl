@@ -155,7 +155,7 @@ end
         B = ein"ab,ac -> bc"(C,C)
         return safetr(A)/safetr(B)
     end
-    @time @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
+    @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
 @testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
@@ -192,7 +192,7 @@ end
 @testset "vumps with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
     β,D = 0.5,10
-    foo1 = β -> -log(Z(vumps_env(Ising(),β,D; atype = atype, verbose = true)))
+    foo1 = β -> -log(Z(vumps_env(Ising(),β,D; atype = atype)))
     @test Zygote.gradient(foo1,β)[1] ≈ energy(vumps_env(Ising(),β,D;atype = atype),Ising(), β) atol = 1e-6
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
 
