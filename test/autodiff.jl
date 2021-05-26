@@ -3,7 +3,6 @@ using ADVUMPS: num_grad, safetr
 using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv
 using ADVUMPS: energy,magofdβ
 using ChainRulesCore
-using ChainRulesTestUtils
 using CUDA
 using KrylovKit
 using LinearAlgebra
@@ -11,7 +10,6 @@ using OMEinsum
 using Random
 using Test
 using Zygote
-
 CUDA.allowscalar(false)
 
 @testset "Zygote with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]

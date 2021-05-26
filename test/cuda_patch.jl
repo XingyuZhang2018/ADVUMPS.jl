@@ -5,7 +5,6 @@ using Test
 using OMEinsum
 using Random
 using BenchmarkTools
-using TensorOperations
 CUDA.allowscalar(false)
 
 @testset "OMEinsum with $atype{$dtype} " for atype in [Array, CuArray], dtype in [Float64]
