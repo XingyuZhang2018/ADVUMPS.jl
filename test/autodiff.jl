@@ -1,13 +1,13 @@
 using ADVUMPS
 using ADVUMPS:qrpos,lqpos,num_grad,Ising
-using Test
-using Zygote
+using BenchmarkTools
+using ChainRulesCore
 using KrylovKit
 using LinearAlgebra
 using OMEinsum
-using ChainRulesCore
-using ChainRulesTestUtils
 using Random
+using Test
+using Zygote
 
 @testset "Zygote" begin
     a = randn(10,10)
@@ -32,6 +32,37 @@ end
     end
     @test foo2(1) != foo3(1)
     @test Zygote.gradient(foo2,1)[1] ≈ Zygote.gradient(foo3,1)[1]
+end
+
+@testset "Zygote OMEinsum function" begin
+    工 = rand(2,2,2,2)
+    c = rand(2,2)
+    ↄ = rand(2,2)
+    function c工ↄ(c,工,ↄ)
+        ein"ab,abcd,cd ->"(c,工,ↄ)[]
+    end
+    
+    fc(c) = c工ↄ(c,工,ↄ)
+    function dc(c,工,ↄ)
+        fc(c) = c工ↄ(c,工,ↄ)
+        Zygote.gradient(fc, c)[1]
+    end
+    @test dc(c,工,ↄ) ≈ num_grad(fc, c)
+
+    王 = rand(2,2,2,2,2,2)
+    E = rand(2,2,2)
+    Ǝ = rand(2,2,2)
+    function 田(E,王,Ǝ)
+        ein"abc,abcdef,def ->"(E,王,Ǝ)[]
+    end
+
+    fE(E) = 田(E,王,Ǝ)
+
+    function dE(E,王,Ǝ)
+        f(E) = 田(E,王,Ǝ)
+        Zygote.gradient(f, E)[1]
+    end
+    @test dE(E,王,Ǝ) ≈ num_grad(fE, E)
 end
 
 @testset "QR factorization" begin
