@@ -1,6 +1,7 @@
 using ChainRulesCore
-using LinearAlgebra
 using KrylovKit
+using LinearAlgebra
+using TupleTools
 
 @Zygote.nograd StopFunction
 @Zygote.nograd leftorth
@@ -28,6 +29,67 @@ function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
         return NO_FIELDS, Δ .* A ./ (n + eps(0f0)), NO_FIELDS
     end
     return n, back
+end
+
+@doc raw"
+    λ, v, info = OMEeigsolve(code::EinCode{ixs, iy}, xs; kwargs...)
+
+return eigenvalue of the largest magnitude from the linear map. xs[1] should be the initial guess of eigsolve.
+
+# example
+```jldoctest; setup = :(using ADVUMPS, OMEinsum, KrylovKit)
+julia> using ADVUMPS:OMEeigsolve
+
+julia> D,d = 10,5;
+
+julia> E₀ = rand(D,d,D);
+
+julia> 王 = rand(D,d,D,D,d,D);
+
+julia> λ, E, info = OMEeigsolve(ein“abc, abcdef -> def”, (E₀, 王));
+
+julia> λs, Es, info = eigsolve(E -> ein”abc, abcdef -> def“(E, 王), E₀, 1, :LM);
+
+julia> λ ≈ λs[1]
+true
+
+julia> E ≈ Es[1]
+true
+```
+"
+function OMEeigsolve(code::EinCode{ixs, iy}, xs; kwargs...) where {ixs, iy}
+    function f(x)
+        nxs = TupleTools.insertat(xs, 1, (x,))
+        einsum(code, nxs)
+    end
+    λs, vs, info = eigsolve(x -> f(x), xs[1], 1, :LM; kwargs...)
+    return λs[1], vs[1], info
+end
+
+function ChainRulesCore.rrule(::typeof(OMEeigsolve), code::EinCode{ixs, iy}, xs::NTuple{N,T where T}; kwargs...) where {N, ixs, iy}
+    λ, v, info = OMEeigsolve(code::EinCode{ixs, iy}, xs)
+    function back((dλ, dv))
+        xs = TupleTools.insertat(xs, 1, (v,))
+        function f(x)
+            niy = ixs[1]
+            nixs = TupleTools.insertat(ixs, 1, (iy,))
+            nxs = TupleTools.insertat(xs, 1, (x,))
+            einsum(EinCode(nixs, niy), nxs)
+        end
+        ξ, _ = linsolve(x -> f(x), dv, -λ, 1)
+        function fξ(i)
+            nixs = TupleTools.insertafter(ixs, N, (iy,))
+            nixs = TupleTools.deleteat(nixs, i)
+            nxs = TupleTools.insertafter(xs, N, (ξ,))
+            nxs = TupleTools.deleteat(nxs, i)
+            niy = ixs[i]
+            einsum(EinCode(nixs, niy), nxs)
+        end
+        dxs = ntuple(i -> fξ(i), N)
+        dxs = TupleTools.insertat(dxs, 1, (zero(xs[1]),))
+        return NO_FIELDS, NO_FIELDS, dxs, NO_FIELDS...
+    end
+    return (λ, v, info), back
 end
 
 """

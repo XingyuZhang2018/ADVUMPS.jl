@@ -1,4 +1,5 @@
 using ADVUMPS
+using ADVUMPS:OMEeigsolve
 using ADVUMPS:qrpos,lqpos,num_grad,Ising
 using BenchmarkTools
 using ChainRulesCore
@@ -32,37 +33,6 @@ end
     end
     @test foo2(1) != foo3(1)
     @test Zygote.gradient(foo2,1)[1] ≈ Zygote.gradient(foo3,1)[1]
-end
-
-@testset "Zygote OMEinsum function" begin
-    工 = rand(2,2,2,2)
-    c = rand(2,2)
-    ↄ = rand(2,2)
-    function c工ↄ(c,工,ↄ)
-        ein"ab,abcd,cd ->"(c,工,ↄ)[]
-    end
-    
-    fc(c) = c工ↄ(c,工,ↄ)
-    function dc(c,工,ↄ)
-        fc(c) = c工ↄ(c,工,ↄ)
-        Zygote.gradient(fc, c)[1]
-    end
-    @test dc(c,工,ↄ) ≈ num_grad(fc, c)
-
-    王 = rand(2,2,2,2,2,2)
-    E = rand(2,2,2)
-    Ǝ = rand(2,2,2)
-    function 田(E,王,Ǝ)
-        ein"abc,abcdef,def ->"(E,王,Ǝ)[]
-    end
-
-    fE(E) = 田(E,王,Ǝ)
-
-    function dE(E,王,Ǝ)
-        f(E) = 田(E,王,Ǝ)
-        Zygote.gradient(f, E)[1]
-    end
-    @test dE(E,王,Ǝ) ≈ num_grad(fE, E)
 end
 
 @testset "QR factorization" begin
@@ -111,4 +81,52 @@ end
     @test isapprox(ein"a,a -> "(R,dR)[], 0, atol = 1e-9)
     ξR, info = linsolve(L -> ein"a, ab -> b"(L,A), dR, -λR, 1)
     @test isapprox(ein"a,a -> "(ξR,R)[], 0, atol = 1e-9)
+end
+
+@testset "OMEeigsolve" begin
+    Random.seed!(100)
+    D,d = 10,5;
+    E = rand(D,d,D);
+    王 = rand(D,d,D,D,d,D);
+    
+    λ, E, _ = OMEeigsolve(ein"abc, abcdef -> def", (E₀, 王))
+
+    @test isapprox(Zygote.gradient(foo, 1)[1], num_grad(foo, 1), atol = 1e-5)
+end
+
+@testset "OMEeigsolve" begin
+    Random.seed!(100)
+    D = 10
+    d = 5
+    M1 = rand(D,d,D)
+    M2 = rand(d,d,d,d)
+
+    function foo(x)
+        ┬ = M1 * x
+        ┼ = M2 * x
+        ┴ = M1 * x
+        E₀ = M1
+        _, E, _ = OMEeigsolve(ein"abc, adf, begd, ceh -> fgh", (E₀, ┬, ┼, ┴))
+        return ein"abc, adf, begd, ceh, fgh -> "(E, ┬, ┼, ┴, E)[]/ein"abc, abc -> "(E,E)[]
+    end
+
+    @test isapprox(Zygote.gradient(foo, 1)[1], num_grad(foo, 1), atol = 1e-5)
+end
+
+@testset "OMEeigsolve" begin
+    Random.seed!(100)
+    D = 10
+    d = 5
+    M1 = rand(D,d,D)
+    M2 = rand(D,d,D,D,d,D)
+
+    function foo(x)
+        E = M1 * x
+        王 = M2 * x
+        E₀ = M1
+        _, E, _ = OMEeigsolve(ein"abc, abcdef -> def", (E₀, 王))
+        return ein"abc, abcdef, def -> "(E, 王, E)[]/ein"abc, abc -> "(E,E)[]
+    end
+
+    @test isapprox(Zygote.gradient(foo, 1)[1], num_grad(foo, 1), atol = 1e-5)
 end
