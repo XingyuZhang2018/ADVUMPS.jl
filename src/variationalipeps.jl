@@ -39,12 +39,13 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
 function expectationvalue(h, ap, env::SquareVUMPSRuntime)
-    M,AL,C,AR,FL,FR = env.M,env.AL,env.C,env.AR,env.FL,env.FR
+    AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
     ap /= norm(ap)
 
-    e = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs,pqrs -> "(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap,h)[]
-    n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs -> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
-    n = ein"pprr -> "(n)[]
+    l = ein"abc,cde,anm,ef,ml,bnodpq -> lofpq"(FL,AL,conj(AL),C,conj(C), ap)
+    r = ein"fgh,lkj,hij,okigrs -> folrs"(AR,conj(AR),FR,ap)
+    e = ein"lofpq,folrs,pqrs -> "(l,r,h)[]
+    n = ein"lofpp,folrr -> "(l,r)[]
 
     # AC = ein"asc,cb -> asb"(AL,C)
     # _, FL4 = bigleftenv(AL, M)
