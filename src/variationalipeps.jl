@@ -1,14 +1,14 @@
 using Optim, LineSearches
 using LinearAlgebra: I, norm
 using TimerOutputs
-
+using OMEinsum: get_size_dict, optimize_greedy,  MinSpaceDiff
 """
     energy(h, ipeps; χ, tol, maxiter)
 
 return the energy of the `ipeps` 2-site hamiltonian `h` and calculated via a
 ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, maxiter::Int, verbose = false)
+function energy(h, model::HamiltonianModel, ipeps::IPEPS, oc; χ::Int, tol::Real, maxiter::Int, verbose = false)
     ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
@@ -24,9 +24,18 @@ function energy(h, model::HamiltonianModel, ipeps::IPEPS; χ::Int, tol::Real, ma
         rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
     end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    save(chkp_file, "env", env)
-    e = expectationvalue(h, ap, env)
+    Zygote.@ignore begin
+        M, AL, C, AR, FL, FR = env.M, Array{Float64,3}(env.AL), Array{Float64,2}(env.C), Array{Float64,3}(env.AR), Array{Float64,3}(env.FL), Array{Float64,3}(env.FR)
+        envsave = SquareVUMPSRuntime(M, AL, C, AR, FL, FR)
+        save(chkp_file, "env", envsave)
+    end
+    e = expectationvalue(h, ap, env, oc)
     return e
+end
+
+function optcont(D::Int, χ::Int)
+    sd = Dict('n' => D^2, 'f' => χ, 'd' => D^2, 'e' => χ, 'o' => D^2, 'h' => χ, 'j' => χ, 'i' => D^2, 'k' => D^2, 'r' => 2, 's' => 2, 'q' => 2, 'a' => χ, 'c' => χ, 'p' => 2, 'm' => χ, 'g' => D^2, 'l' => χ, 'b' => D^2)
+    optimize_greedy(ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs", sd; method=MinSpaceDiff())
 end
 
 """
@@ -36,13 +45,13 @@ return the expectationvalue of a two-site operator `h` with the sites
 described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
-function expectationvalue(h, ap, env::SquareVUMPSRuntime)
-    M,AL,C,AR,FL,FR = env.M,env.AL,env.C,env.AR,env.FL,env.FR
+function expectationvalue(h, ap, env::SquareVUMPSRuntime, oc)
+    AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
     ap /= norm(ap)
 
-    e = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs,pqrt -> st"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap,h)
-    n = ein"abc,cde,anm,ef,ml,fgh,lkj,hij,bnodpq,okigrs-> pqrs"(FL,AL,conj(AL),C,conj(C),AR,conj(AR),FR,ap,ap)
-    n = ein"pprs -> rs"(n)
+    lr = oc(FL,AL,ap,conj(AL),C,conj(C),FR,AR,ap,conj(AR))
+    e = Array(ein"pqrs, pqrs -> "(lr,h))[]
+    n = Array(ein"pprr -> "(lr))[]
 
     # AC = ein"asc,cb -> asb"(AL,C)
     # _, FL4 = bigleftenv(AL, M)
@@ -52,7 +61,7 @@ function expectationvalue(h, ap, env::SquareVUMPSRuntime)
     # n2 = ein"pprr -> "(n2)[]
     # @show e/n e2/n2 (e/n+e2/n2)/2
 
-    return safetr(e)/safetr(n)
+    return e/n
 end
 
 """
@@ -91,8 +100,9 @@ function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, opiter = 100, verbos
     model, D, χ, tol, maxiter = key
     h = atype(hamiltonian(model))
     to = TimerOutput()
-    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(atype(x)); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-    ff(x) = real(energy(h, model, IPEPS{LT}(atype(x)); χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    oc = optcont(D, χ)
+    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(atype(x)), oc; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    ff(x) = real(energy(h, model, IPEPS{LT}(atype(x)), oc; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps.bulk, optimmethod,inplace = false,

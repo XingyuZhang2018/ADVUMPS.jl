@@ -406,11 +406,6 @@ git-tree-sha1 = "b616937c31337576360cb9fb872ec7633af7b194"
 uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
 version = "3.6.0"
 
-[[LRUCache]]
-git-tree-sha1 = "5a9338dce0811619e42c9e9aa9ae044c3c82a58f"
-uuid = "8ac3fa9e-de4c-5943-b1dc-09c6b5f20637"
-version = "1.2.0"
-
 [[LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "f128cd6cd05ffd6d3df0523ed99b90ff6f9b349a"
@@ -588,10 +583,12 @@ version = "0.3.5"
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 
 [[OMEinsum]]
-deps = ["BatchedRoutines", "CUDA", "Combinatorics", "LinearAlgebra", "MacroTools", "PkgBenchmark", "Requires", "TensorOperations", "Test", "TupleTools", "ZygoteRules"]
-git-tree-sha1 = "a9008cafbf6d68349cd25b4dc5f3e8b3789a364f"
+deps = ["AbstractTrees", "BatchedRoutines", "CUDA", "ChainRulesCore", "Combinatorics", "LinearAlgebra", "MacroTools", "PkgBenchmark", "Requires", "Test", "TupleTools"]
+git-tree-sha1 = "1c9fd97e3f6e0223147a1ac19a72fb8561fe6123"
+repo-rev = "master"
+repo-url = "https://github.com/under-Peter/OMEinsum.jl"
 uuid = "ebe7aa44-baf0-506c-a96f-8464559b3922"
-version = "0.3.3"
+version = "0.4.3"
 
 [[Ogg_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -805,12 +802,6 @@ git-tree-sha1 = "4bc58880426274277a066de306ef19ecc22a6863"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.33.5"
 
-[[Strided]]
-deps = ["LinearAlgebra", "TupleTools"]
-git-tree-sha1 = "82111d3fe7982756d98e8b6606394efc6bb8df40"
-uuid = "5e0ebb24-38b0-5f93-81fe-25c709ecae67"
-version = "1.1.1"
-
 [[StructArrays]]
 deps = ["Adapt", "DataAPI", "Tables"]
 git-tree-sha1 = "44b3afd37b17422a62aea25f04c1f7e09ce6b07f"
@@ -836,12 +827,6 @@ version = "1.4.1"
 [[Tar]]
 deps = ["ArgTools", "SHA"]
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-
-[[TensorOperations]]
-deps = ["CUDA", "LRUCache", "LinearAlgebra", "Requires", "Strided", "TupleTools"]
-git-tree-sha1 = "5da1079f1cdfa239a16f7f05b8bb325945dffb7c"
-uuid = "6aa20fa7-93e2-5fca-9bc0-fbd0db3c71a2"
-version = "3.1.0"
 
 [[TerminalLoggers]]
 deps = ["LeftChildRightSiblingTrees", "Logging", "Markdown", "Printf", "ProgressLogging", "UUIDs"]

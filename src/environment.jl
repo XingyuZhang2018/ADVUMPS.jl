@@ -56,7 +56,7 @@ provided.
 """
 function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
     _, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
-        ρE = ein"cd,dsb,csa -> ab"(ρ, A, conj(A))
+        ρE = ein"(cd,dsb),csa -> ab"(ρ, A, conj(A))
         return ρE
     end
     ρ = ρs[1] + ρs[1]'
@@ -76,7 +76,7 @@ function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 
     while norm(C-R) > tol && numiter < maxiter
         # C = R
         _, Cs, info = eigsolve(R, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do X
-            Y = ein"cd,dsb,csa -> ab"(X,A,conj(AL))
+            Y = ein"(cd,dsb),csa -> ab"(X,A,conj(AL))
             return Y
         end
         _, C = qrpos!(Cs[1])
@@ -126,7 +126,7 @@ FL─ M ─  = λL FL─
 ```
 """
 function leftenv(AL, M, FL = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(AL,1))); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false, kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -152,7 +152,7 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 ```
 """
 function rightenv(AR, M, FR = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(AR,1))); kwargs...)
-    λs, FRs, info = eigsolve(FR -> ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
+    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -181,7 +181,7 @@ FL4 │    = λL FL4
 ```
 """
 function bigleftenv(AL, M, FL4 = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1))); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 1, :LM; ishermitian = false, kwargs...)
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFL4s
     return real(λFL4s[1]), real(FL4s[1])
 end
@@ -202,7 +202,7 @@ of `AR - M - conj(AR)`` contracted along the physical dimension.
 ```
 """
 function bigrightenv(AR, M, FR4 = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1))); kwargs...)
-    λFR4s, FR4s, info = eigsolve(FR4 -> ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 1, :LM; ishermitian = false, kwargs...)
+    λFR4s, FR4s, info = eigsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFR4s
     return real(λFR4s[1]), real(FR4s[1])
 end
@@ -220,7 +220,7 @@ FL─ M ──FR  =  λAC  │   │   │
 ````
 """
 function ACenv(AC, FL, M, FR;kwargs...)
-    λs, ACs, _ = eigsolve(AC -> ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
+    λs, ACs, _ = eigsolve(AC -> ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -244,7 +244,7 @@ FL─── FR  =  λC  │     │
 ````
 """
 function Cenv(C, FL, FR;kwargs...)
-    λs, Cs, _ = eigsolve(C -> ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
+    λs, Cs, _ = eigsolve(C -> ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -306,7 +306,7 @@ MAC2 =  FL─ M ──FR  =  λAC  │     │
 """
 function error(AL,C,FL,M,FR)
     AC = ein"asc,cb -> asb"(AL,C)
-    MAC = ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
-    MAC -= ein"asd,cpd,cpb -> asb"(AL,conj(AL),MAC)
+    MAC = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
+    MAC -= ein"asd,(cpd,cpb) -> asb"(AL,conj(AL),MAC)
     norm(MAC)
 end

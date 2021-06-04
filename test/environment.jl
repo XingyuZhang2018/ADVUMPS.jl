@@ -4,6 +4,7 @@ using LinearAlgebra
 using Random
 using Test
 using OMEinsum
+using OMEinsum: optimize_greedy
 using Zygote
 using BenchmarkTools
 using CUDA
@@ -12,7 +13,7 @@ using KrylovKit
 @testset "qr with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
     A = atype(rand(dtype, 4,4))
-    Q, R = @time qrpos(A)
+    Q, R = qrpos(A)
     @test Array(Q*R) ≈ Array(A)
     @test all(real.(diag(R)) .> 0)
     @test all(imag.(diag(R)) .≈ 0)
@@ -35,13 +36,13 @@ end
     λLs, Ls, info = eigsolve(L -> ein"ab,abcd -> cd"(L,工), atype(rand(D,D)), 1, :LM)
     λL, L = λLs[1], Ls[1]
     @test imag(λL) ≈ 0
-    @test ein"ab,ab -> "(L,L)[] ≈ 1 
+    @test Array(ein"ab,ab -> "(L,L))[] ≈ 1 
     @test λL * L ≈ ein"ab,abcd -> cd"(L,工)
 
     λRs, Rs, info = eigsolve(R -> ein"abcd,cd -> ab"(工,R), atype(rand(D,D)), 1, :LM)
     λR, R = λRs[1], Rs[1]
     @test imag(λR) ≈ 0
-    @test ein"ab,ab -> "(R,R)[] ≈ 1 
+    @test Array(ein"ab,ab -> "(R,R))[] ≈ 1 
     @test λR * R ≈ ein"abcd,cd -> ab"(工,R)
     @test λL ≈ λR
 end
@@ -76,7 +77,7 @@ end
     @test (Array(CAR) ≈ Array(AC))
 end
 
-@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
@@ -87,8 +88,7 @@ end
     
     AL, = leftorth(A)
     λL,FL = leftenv(AL, M)
-    @test λL * FL ≈ ein"γcη,ηpβ,csap,γsα -> αaβ"(FL,AL,M,conj(AL))
-
+    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,conj(AL))
     _, AR = rightorth(A)
     λR,FR = rightenv(AR, M)
     @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))

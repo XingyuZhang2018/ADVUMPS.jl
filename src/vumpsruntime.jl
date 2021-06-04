@@ -81,7 +81,7 @@ end
 function _initializect_square(M::AbstractArray{T,4}, chkp_file::String, D::Int; verbose = false) where T
     env = load(chkp_file)["env"]
     atype = _arraytype(M)
-    verbose && print("vumps environment load from $(chkp_file) -> ")   
+    verbose && print("vumps environment load from $(chkp_file) -> ")
     atype(env.AL),atype(env.C),atype(env.AR),atype(env.FL),atype(env.FR)
 end
 
