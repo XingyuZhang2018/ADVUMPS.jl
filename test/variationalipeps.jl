@@ -77,8 +77,8 @@ end
     # comparison with results from https://github.com/wangleiphy/tensorgrad
     Random.seed!(3)
     model = TFIsing(1.0)
-    ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=20)
-    res = optimiseipeps(ipeps, key; f_tol = 1e-6, atype = atype)
+    ipeps, key = init_ipeps(model;atype = atype, D=2, χ=20, tol=1e-10, maxiter=10)
+    res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 100, verbose = false)
     e = minimum(res)
     @test isapprox(e, -2.12566, atol = 1e-2)
 
@@ -101,8 +101,8 @@ end
     # comparison with results from https://github.com/wangleiphy/tensorgrad
     Random.seed!(100)
     model = Heisenberg(1.0,1.0,1.0)
-    ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=10)
-    res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 100, atype = atype, verbose = false)
+    ipeps, key = init_ipeps(model;atype = atype, D=2, χ=20, tol=1e-10, maxiter=10)
+    res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 100, verbose = false)
     e = minimum(res)
     @test isapprox(e, -0.66023, atol = 1e-4)
 

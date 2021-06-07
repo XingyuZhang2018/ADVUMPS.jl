@@ -8,7 +8,8 @@ using OMEinsum: get_size_dict, optimize_greedy,  MinSpaceDiff
 return the energy of the `ipeps` 2-site hamiltonian `h` and calculated via a
 ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
-function energy(h, model::HamiltonianModel, ipeps::IPEPS, oc; χ::Int, tol::Real, maxiter::Int, verbose = false)
+function energy(h, ipeps::IPEPS, oc, key; verbose = false)
+    model, atype, _, χ, tol, maxiter = key
     ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
@@ -70,17 +71,17 @@ end
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true, atype = Array)
-    folder = "./data/$(model)/"
+function init_ipeps(model::HamiltonianModel; atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
+    key = (model, atype, D, χ, tol, maxiter)
+    folder = "./data/$(model)_$(atype)/"
     mkpath(folder)
-    key = (model, D, χ, tol, maxiter)
-    chkp_file = folder*"$(model)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
+    chkp_file = folder*"$(model)_$(atype)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         bulk = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
         bulk = rand(D,D,D,D,2)
-        verbose && println("random initial iPEPS")
+        verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps = SquareIPEPS(bulk)
     ipeps = indexperm_symmetrize(ipeps)
@@ -96,13 +97,13 @@ two-site hamiltonian `h`. The minimization is done using `Optim` with default-me
 providing `optimmethod`. Other options to optim can be passed with `optimargs`.
 The energy is calculated using vumps with key include parameters `χ`, `tol` and `maxiter`.
 """
-function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20), atype = Array) where LT
-    model, D, χ, tol, maxiter = key
+function optimiseipeps(ipeps::IPEPS{LT}, key; f_tol = 1e-6, opiter = 100, verbose= false, optimmethod = LBFGS(m = 20)) where LT
+    model, atype, D, χ, _, _ = key
     h = atype(hamiltonian(model))
     to = TimerOutput()
     oc = optcont(D, χ)
-    f(x) = @timeit to "forward" real(energy(h, model, IPEPS{LT}(atype(x)), oc; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
-    ff(x) = real(energy(h, model, IPEPS{LT}(atype(x)), oc; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose))
+    f(x) = @timeit to "forward" real(energy(h, IPEPS{LT}(atype(x)), oc, key; verbose=verbose))
+    ff(x) = real(energy(h, IPEPS{LT}(atype(x)), oc, key; verbose=verbose))
     g(x) = @timeit to "backward" Zygote.gradient(ff,atype(x))[1]
     res = optimize(f, g, 
         ipeps.bulk, optimmethod,inplace = false,
@@ -125,12 +126,12 @@ function writelog(os::OptimizationState, key=nothing)
     printstyled(message; bold=true, color=:red)
     flush(stdout)
 
-    model, D, χ, tol, maxiter = key
+    model, atype, D, χ, tol, maxiter = key
     if !(key === nothing)
-        logfile = open("./data/$(model)/$(model)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
+        logfile = open("./data/$(model)_$(atype)/$(model)_$(atype)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).log", "a")
         write(logfile, message)
         close(logfile)
-        save("./data/$(model)/$(model)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
+        save("./data/$(model)_$(atype)/$(model)_$(atype)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2", "ipeps", os.metadata["x"])
     end
     return false
 end
