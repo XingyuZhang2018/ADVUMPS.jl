@@ -1,6 +1,5 @@
 using Test 
 using ADVUMPS
-# using ADVUMPS: energy, num_grad, diaglocal
 using ADVUMPS: energy, num_grad, diaglocal, optcont
 using CUDA
 using LinearAlgebra: svd, norm
@@ -8,7 +7,6 @@ using Random
 using OMEinsum
 using LineSearches, Optim
 using Zygote
-using OMEinsum: get_size_dict, optimize_greedy, MinSpaceOut, MinSpaceDiff
 
 CUDA.allowscalar(false)
 
@@ -103,8 +101,8 @@ end
     # comparison with results from https://github.com/wangleiphy/tensorgrad
     Random.seed!(100)
     model = Heisenberg(1.0,1.0,1.0)
-    ipeps, key = init_ipeps(model; D=4, χ=30, tol=1e-10, maxiter=10)
-    res = optimiseipeps(ipeps, key; f_tol = 1e-6, atype = atype, verbose = true)
+    ipeps, key = init_ipeps(model; D=2, χ=20, tol=1e-10, maxiter=10)
+    res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 100, atype = atype, verbose = false)
     e = minimum(res)
     @test isapprox(e, -0.66023, atol = 1e-4)
 
@@ -122,3 +120,4 @@ end
     # e = minimum(res)
     # @test isapprox(e, -1.0208, atol = 1e-3)
 end
+ 

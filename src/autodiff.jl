@@ -62,7 +62,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::Abstra
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, conj(AL), M, ξl) - ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, AL, M, ξl)
-        dM = -ein"((γcη,ηpβ),γsα),βaα -> csap"(FL, AL, conj(AL), ξl)
+        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, AL, conj(AL), ξl)
         return NO_FIELDS, dAL, dM, NO_FIELDS...
     end
     return (λl, FL), back
@@ -93,7 +93,7 @@ function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::Abstr
         # errR = ein"abc,cba ->"(ξr, FR)[]
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, conj(AR), M, FR) - ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, AR, M, FR)
-        dM = -ein"((γcη,ηpβ),γsα),βaα -> csap"(ξr, AR, conj(AR), FR)
+        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, AR, conj(AR), FR)
         return NO_FIELDS, dAR, dM, NO_FIELDS...
     end
     return (λr, FR), back
@@ -131,7 +131,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
         # errAC = ein"abc,abc ->"(AC, ξ)[]
         # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
         dFL = -ein"((ηpβ,βaα),csap),γsα -> γcη"(AC, FR, M, ξ)
-        dM = -ein"((γcη,ηpβ),γsα),βaα -> csap"(FL, AC, ξ, FR)
+        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, AC, ξ, FR)
         dFR = -ein"((ηpβ,γcη),csap),γsα -> βaα"(AC, FL, M, ξ)
         return NO_FIELDS, NO_FIELDS, dFL, dM, dFR
     end
@@ -176,7 +176,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -186,7 +186,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back
