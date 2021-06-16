@@ -59,6 +59,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::Abstra
     # @show λl
     function back((dλ, dFL))
         ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λl, 1)
+        # @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, conj(AL), M, ξl) - ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, AL, M, ξl)
@@ -90,6 +91,7 @@ function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::Abstr
     # @show λr
     function back((dλ, dFR))
         ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λr, 1)
+        # @assert info.converged==1
         # errR = ein"abc,cba ->"(ξr, FR)[]
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, conj(AR), M, FR) - ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, AR, M, FR)
@@ -176,7 +178,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -186,7 +188,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back

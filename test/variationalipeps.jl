@@ -1,11 +1,11 @@
-using Test 
 using ADVUMPS
 using ADVUMPS: energy, num_grad, diaglocal, optcont
 using CUDA
 using LinearAlgebra: svd, norm
-using Random
-using OMEinsum
 using LineSearches, Optim
+using OMEinsum
+using Random
+using Test
 using Zygote
 
 CUDA.allowscalar(false)
