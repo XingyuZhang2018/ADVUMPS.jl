@@ -1,14 +1,14 @@
 using ADVUMPS
-using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv
+using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv,obs_FL,obs_FR,norm_FL,norm_FR
+using BenchmarkTools
+using CUDA
+using KrylovKit
 using LinearAlgebra
 using Random
 using Test
 using OMEinsum
 using OMEinsum: optimize_greedy
 using Zygote
-using BenchmarkTools
-using CUDA
-using KrylovKit
 
 @testset "qr with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
@@ -77,7 +77,7 @@ end
     @test (Array(CAR) ≈ Array(AC))
 end
 
-@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
+@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
@@ -93,6 +93,39 @@ end
     λR,FR = rightenv(AR, M)
     @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))
 end
+
+@testset "observable leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+    Random.seed!(100)
+    d = 2
+    D = 10
+
+    β = rand(dtype)
+    A = atype(rand(dtype,D,d,D))
+    M = atype(model_tensor(Ising(),β))
+    
+    AL, = leftorth(A)
+    λL,FL = obs_FL(AL, AL, M)
+    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,AL)
+    _, AR = rightorth(A)
+    λR,FR = obs_FR(AR, AR, M)
+    @test λR * FR ≈ ein"((αpγ,γcη),ascp),βsη -> αaβ"(AR,FR,M,AR)
+end
+
+@testset "normalization leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+    Random.seed!(100)
+    d = 2
+    D = 10
+
+    A = atype(rand(dtype,D,d,D))
+    
+    AL, = leftorth(A)
+    λL,FL = norm_FL(AL, AL)
+    @test λL * FL ≈ ein"(ad,acb), dce -> be"(FL,AL,AL)
+    _, AR = rightorth(A)
+    λR,FR = norm_FR(AR, AR)
+    @test λR * FR ≈ ein"(be,acb), dce -> ad"(FR,AR,AR)
+end
+
 
 @testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
     Random.seed!(100)

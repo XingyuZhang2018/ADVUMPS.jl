@@ -19,16 +19,3 @@ _mattype(x::Symmetric{T, CuArray{T, 2}}) where {T} = CuMatrix
 
 _arraytype(x::Array{T}) where {T} = Array
 _arraytype(x::CuArray{T}) where {T} = CuArray
-
-"""
-    safetr(A::CuArray)
-
-origin tr(A::CuArray) will cause problem when use Zygote
-"""
-function safetr(A::CuArray)
-    Array(ein"aa -> "(A))[]
-end
-
-function safetr(A::Array)
-    tr(A)
-end

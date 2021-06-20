@@ -1,3 +1,5 @@
+using Random
+
 export AbstractLattice, SquareLattice
 abstract type AbstractLattice end
 struct SquareLattice <: AbstractLattice end
@@ -116,4 +118,58 @@ function vumpstep(rt::VUMPSRuntime,err)
 
     err = error(AL,C,FL,M,FR)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
+end
+
+"""
+    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, verbose = false)
+
+If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
+"""
+function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false) where {MT <: HamiltonianModel}
+    mkpath("./data/$(model)_$(atype)")
+    chkp_file_up = "./data/$(model)_$(atype)/up_D$(D)_chi$(χ).jld2"
+    if isfile(chkp_file_up)                               
+        rtup = SquareVUMPSRuntime(Mu, chkp_file_up, χ; verbose = verbose)   
+    else
+        # Random.seed!(100)
+        rtup = SquareVUMPSRuntime(Mu, Val(:random), χ; verbose = verbose)
+    end
+    envup = vumps(rtup; tol=tol, maxiter=maxiter, verbose = verbose)
+    ALu,ARu,Cu,FL,FR = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
+
+    println("origin FLFR = $(ein"abc,cba ->"(FL,FR)[])")
+
+    Zygote.@ignore savefile && begin
+        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envup.AL), Array{Float64,2}(envup.C), Array{Float64,3}(envup.AR), Array{Float64,3}(envup.FL), Array{Float64,3}(envup.FR)
+        envupsave = SquareVUMPSRuntime(Mu, ALs, Cs, ARs, FLs, FRs)
+        save(chkp_file_up, "env", envupsave)
+    end
+
+    Md = permutedims(Mu, (1,4,3,2))
+
+    chkp_file_down = "./data/$(model)_$(atype)/down_D$(D)_chi$(χ).jld2"
+    if isfile(chkp_file_down)                               
+        rtdown = SquareVUMPSRuntime(Md, chkp_file_down, χ; verbose = verbose)   
+    else
+        # Random.seed!(100)
+        rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)
+    end
+    envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
+    Zygote.@ignore savefile && begin
+        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
+        envdownsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
+        save(chkp_file_down, "env", envdownsave)
+    end
+    ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
+
+    @show norm(ALu - ALd),norm(ARu - ARd)
+    _, FL_n = norm_FL(ALu, ALd)
+    _, FR_n = norm_FR(ARu, ARd)
+    println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
+    println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
+
+    _, FL = obs_FL(ALu, ALd, Mu, FL)
+    _, FR = obs_FR(ARu, ARd, Mu, FR)
+    println("change FLFR = $(ein"abc,cba ->"(FL,FR)[])")
+    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
 end

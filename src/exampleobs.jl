@@ -30,9 +30,9 @@ return the partition function of the `env`.
 function Z(env::SquareVUMPSRuntime)
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     AC = ein"asc,cb -> asb"(AL,C)
-    z = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
-    λ = ein"acβ,βη,ηcγ,bγ -> ab"(FL,C,FR,conj(C))
-    return safetr(z)/safetr(λ)
+    z = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
+    λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,C,FR,conj(C))
+    return Array(z)[]/Array(λ)[]
 end
 
 """
@@ -44,9 +44,9 @@ function magnetisation(env::SquareVUMPSRuntime, model::MT, β) where {MT <: Hami
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Mag = _arraytype(M)(mag_tensor(model, β))
     AC = ein"asc,cb -> asb"(AL,C)
-    mag = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,Mag,FR,conj(AC))
-    λ = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
-    return abs(safetr(mag)/safetr(λ))
+    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,Mag,FR,conj(AC))
+    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
+    return abs(Array(mag)[]/Array(λ)[])
 end
 
 """
@@ -60,9 +60,61 @@ function energy(env::SquareVUMPSRuntime, model::MT, β) where {MT <: Hamiltonian
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Ene = _arraytype(M)(energy_tensor(model, β))
     AC = ein"asc,cb -> asb"(AL,C)
-    energy = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,Ene,FR,conj(AC))
-    λ = ein"acβ,βsη,cpds,ηdγ,bpγ -> ab"(FL,AC,M,FR,conj(AC))
-    return safetr(energy)/safetr(λ)*2 # factor 2 for counting horizontal and vertical links
+    energy = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,Ene,FR,conj(AC))
+    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
+    return Array(energy)[]/Array(λ)[]*2 # factor 2 for counting horizontal and vertical links
+end
+
+"""
+    Z(env)
+
+return the up and down partition function of the `env`.
+"""
+function Z(env)
+    M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = env
+    ACu = ein"asc,cb -> asb"(ALu,Cu)
+    ACd = ein"asc,cb -> asb"(ALd,Cd)
+    z = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
+    λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,Cu,FR,Cd)
+    _, FL_n = norm_FL(ALu, ALd)
+    _, FR_n = norm_FR(ARu, ARd)
+    overlap = ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"((ac,ab),bd),cd ->"(FL_n,Cu,FR_n,Cd)[]
+    # z = ein"((((((ifa,abc),fjgb),ijk),cde),glhd),klm),ehm -> "(FL,ACu,M,ACd,ARu,M,ARd,FR)
+    # λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,Cu,FR,Cd)
+    # overlap = ein"((((af,abc),fbg),cde),gdh),eh ->"(FL_n,ACu,ACd,ARu,ARd,FR_n)[]/ein"((ac,ab),bd),cd ->"(FL_n,Cu,FR_n,Cd)[]
+    return Array(z)[]/Array(λ)[]/overlap
+end
+
+"""
+    magnetisation(env, model::MT, β)
+
+return the up and down magnetisation of the `model`. Requires that `mag_tensor` are defined for `model`.
+"""
+function magnetisation(env, model::MT, β) where {MT <: HamiltonianModel}
+    M, ALu, Cu, _, ALd, Cd, _, FL, FR = env
+    Mag = _arraytype(M)(mag_tensor(model, β))
+    ACu = ein"asc,cb -> asb"(ALu,Cu)
+    ACd = ein"asc,cb -> asb"(ALd,Cd)
+    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Mag,FR,ACd)
+    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
+    return abs(Array(mag)[]/Array(λ)[])
+end
+
+"""
+    energy(env, model::MT, β)
+
+return the up and down energy of the `model` as a function of the inverse
+temperature `β` and the environment bonddimension `D` as calculated with
+vumps. Requires that `model_tensor` are defined for `model`.
+"""
+function energy(env, model::MT, β) where {MT <: HamiltonianModel}
+    M, ALu, Cu, _, ALd, Cd, _, FL, FR = env
+    Ene = _arraytype(M)(energy_tensor(model, β))
+    ACu = ein"asc,cb -> asb"(ALu,Cu)
+    ACd = ein"asc,cb -> asb"(ALd,Cd)
+    energy = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Ene,FR,ACd)
+    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
+    return Array(energy)[]/Array(λ)[]*2 # factor 2 for counting horizontal and vertical links
 end
 
 """

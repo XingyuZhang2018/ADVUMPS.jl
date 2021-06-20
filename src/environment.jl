@@ -164,6 +164,77 @@ function rightenv(AR, M, FR = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(
     return real(λs[1]), real(FRs[1])
 end
 
+"""
+    λ, FL = obs_FL(ALu, ALd, M, FL; kwargs...)
+
+Compute the left environment tensor for observable, by finding the left fixed point
+of `ALu - M - ALd` contracted along the physical dimension.
+```
+┌── ALu─      ┌──         
+│   │         │             
+FL─ M ─  = λL FL─         
+│   │         │             
+┕── ALd─      ┕──        
+```
+"""
+function obs_FL(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALu,M,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
+    println("obs_FL $(λs)") 
+    return real(λs[1]), real(FLs[1])
+end
+
+"""
+    λ, FR = obs_FR(ARu, ARd, M, FR; kwargs...)
+
+Compute the right environment tensor for observable, by finding the right fixed point
+of `ARu - M - ARd`` contracted along the physical dimension.
+```
+ ─ ARu──┐         ──┐   
+    │   │           │   
+ ─  M ──FR   = λR ──FR  
+    │   │           │   
+ ─ ARd──┘         ──┘  
+```
+"""
+function obs_FR(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
+    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(ARu,FR,M,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
+    println("obs_FR $(λs)") 
+    return real(λs[1]), real(FRs[1])
+end
+
+"""
+    λ, FL = norm_FL(ALu, ALd, FL; kwargs...)
+
+Compute the left environment tensor for normalization, by finding the left fixed point
+of `ALu - ALd` contracted along the physical dimension.
+```
+┌──ALu─      ┌──         
+FL  │  =  λL FL        
+┕──ALd─      ┕──  
+```
+"""
+function norm_FL(ALu, ALd, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(ALd,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"(ad,acb), dce -> be"(FL,ALu,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
+    println("norm_FL $(λs)") 
+    return real(λs[1]), real(FLs[1])
+end
+
+"""
+    λ, FR = norm_FR(ARu, ARd, FR; kwargs...)
+
+Compute the right environment tensor for normalization, by finding the right fixed point
+of `ARu - ARd` contracted along the physical dimension.
+```
+ ─ AR──┐       ──┐   
+   │   FR  = λR  FR   
+ ─ AR──┘       ──┘ 
+```
+"""
+function norm_FR(ARu, ARd, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(ARd,3))); kwargs...)
+    λs, FRs, info = eigsolve(FR -> ein"(be,acb), dce -> ad"(FR,ARu,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
+    println("norm_FR $(λs)") 
+    return real(λs[1]), real(FRs[1])
+end
 
 """
     λ, FL4 = bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
@@ -229,6 +300,7 @@ function ACenv(AC, FL, M, FR;kwargs...)
     #         return real(λs[2]), real(ACs[2])
     #     end
     # end
+    # println("ACenv $(λs)") 
     return real(λs[1]), real(ACs[1])
 end
 
