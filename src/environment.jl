@@ -179,7 +179,7 @@ FL─ M ─  = λL FL─
 """
 function obs_FL(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALu,M,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
-    println("obs_FL $(λs)") 
+    # println("obs_FL $(λs)") 
     return real(λs[1]), real(FLs[1])
 end
 
@@ -198,7 +198,7 @@ of `ARu - M - ARd`` contracted along the physical dimension.
 """
 function obs_FR(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(ARu,FR,M,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
-    println("obs_FR $(λs)") 
+    # println("obs_FR $(λs)") 
     return real(λs[1]), real(FRs[1])
 end
 
@@ -215,7 +215,7 @@ FL  │  =  λL FL
 """
 function norm_FL(ALu, ALd, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(ALd,1))); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"(ad,acb), dce -> be"(FL,ALu,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
-    println("norm_FL $(λs)") 
+    # println("norm_FL $(λs)") 
     return real(λs[1]), real(FLs[1])
 end
 
@@ -232,7 +232,7 @@ of `ARu - ARd` contracted along the physical dimension.
 """
 function norm_FR(ARu, ARd, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(ARd,3))); kwargs...)
     λs, FRs, info = eigsolve(FR -> ein"(be,acb), dce -> ad"(FR,ARu,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
-    println("norm_FR $(λs)") 
+    # println("norm_FR $(λs)") 
     return real(λs[1]), real(FRs[1])
 end
 
