@@ -133,9 +133,10 @@ If the bulk tensor isn't up and down symmetric, the up and down environment are 
 """
 function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false) where {MT <: HamiltonianModel}
     mkpath("./data/$(model)_$(atype)")
-    chkp_file = "./data/$(model)_$(atype)/up_D$(D)_chi$(χ).jld2"
-    if isfile(chkp_file)                               
-        rtup = SquareVUMPSRuntime(Mu, chkp_file, χ; verbose = verbose)   
+    chkp_file_up = "./data/$(model)_$(atype)/up_D$(D)_chi$(χ).jld2"
+    verbose && print("↑ ")
+    if isfile(chkp_file_up)                               
+        rtup = SquareVUMPSRuntime(Mu, chkp_file_up, χ; verbose = verbose)   
     else
         rtup = SquareVUMPSRuntime(Mu, Val(:random), χ; verbose = verbose)
     end
@@ -145,18 +146,25 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     Zygote.@ignore savefile && begin
         ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envup.AL), Array{Float64,2}(envup.C), Array{Float64,3}(envup.AR), Array{Float64,3}(envup.FL), Array{Float64,3}(envup.FR)
         envsave = SquareVUMPSRuntime(Mu, ALs, Cs, ARs, FLs, FRs)
-        save(chkp_file, "env", envsave)
+        save(chkp_file_up, "env", envsave)
     end
 
     Md = permutedims(Mu, (1,4,3,2))
-    if isfile(chkp_file) 
-        rtdown = SquareVUMPSRuntime(Md, chkp_file, χ; verbose = verbose)    
+    chkp_file_down = "./data/$(model)_$(atype)/down_D$(D)_chi$(χ).jld2"
+    verbose && print("↓ ")
+    if isfile(chkp_file_down) 
+        rtdown = SquareVUMPSRuntime(Md, chkp_file_down, χ; verbose = verbose)    
     else      
         rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)   
     end
     envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
     ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
 
+    Zygote.@ignore savefile && begin
+        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
+        envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
+        save(chkp_file_down, "env", envsave)
+    end  
     # @show norm(ALu - ALd),norm(ARu - ARd)
     # _, FL_n = norm_FL(ALu, ALd)
     # _, FR_n = norm_FR(ARu, ARd)
