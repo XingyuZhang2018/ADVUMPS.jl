@@ -74,8 +74,8 @@ function _initializect_square(M::AbstractArray{T,4}, env::Val{:random}, D::Int; 
     A = _arraytype(M)(rand(T,D,d,D))
     AL, = leftorth(A)
     C, AR = rightorth(AL)
-    _, FL = leftenv(AL, M)
-    _, FR = rightenv(AR, M)
+    _, FL = leftenv(AL, AL, M)
+    _, FR = rightenv(AR, AR, M)
     verbose && print("random initial vumps environment-> ")
     AL,C,AR,FL,FR
 end
@@ -100,13 +100,18 @@ end
 function vumpstep(rt::VUMPSRuntime,err)
     # global backratio = 1.0
     # Zygote.@ignore print(round(-log(10,backratio)),' ')
-    M,AL,C,AR,FL,FR= rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
+    M,AL,C,AR,FL,FR = rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
-    _, AC = ACenv(AC, FL, M, FR)
-    _, C = Cenv(C, FL, FR) 
+    # ACp = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
+    # Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
+    _, ACp = ACenv(AC, FL, M, FR)
+    _, Cp = Cenv(C, FL, FR)
+    ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
+    _, FL = leftenv(AL, ALp, M, FL)
+    _, FR = rightenv(AR, ARp, M, FR)
+    _, AC = ACenv(ACp, FL, M, FR)
+    _, C = Cenv(Cp, FL, FR)
     AL, AR, _, _ = ACCtoALAR(AC, C)
-    _, FL = leftenv(AL, M, FL)
-    _, FR = rightenv(AR, M, FR)
 
     ##### avoid gradient explosion for too many iterations #####
     # M = backratio .* M + Zygote.@ignore (1-backratio) .* M
@@ -117,6 +122,7 @@ function vumpstep(rt::VUMPSRuntime,err)
     # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
 
     err = error(AL,C,AR,FL,M,FR)
+    # @show err
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
 end
 
@@ -143,8 +149,11 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     end
 
     Md = permutedims(Mu, (1,4,3,2))
-                             
-    rtdown = SquareVUMPSRuntime(Md, chkp_file, χ; verbose = verbose)   
+    if isfile(chkp_file) 
+        rtdown = SquareVUMPSRuntime(Md, chkp_file, χ; verbose = verbose)    
+    else      
+        rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)   
+    end
     envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
     ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
 
@@ -154,7 +163,7 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
     # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
 
-    _, FL = obs_FL(ALu, ALd, Mu, FL)
-    _, FR = obs_FR(ARu, ARd, Mu, FR)
+    _, FL = leftenv(ALu, ALd, Mu, FL)
+    _, FR = rightenv(ARu, ARd, Mu, FR)
     Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
 end

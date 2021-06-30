@@ -1,5 +1,5 @@
 using ADVUMPS
-using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv,obs_FL,obs_FR,norm_FL,norm_FR
+using ADVUMPS:qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv,norm_FL,norm_FR
 using BenchmarkTools
 using CUDA
 using KrylovKit
@@ -86,29 +86,14 @@ end
     A = atype(rand(dtype,D,d,D))
     M = atype(model_tensor(Ising(),β))
     
-    AL, = leftorth(A)
-    λL,FL = leftenv(AL, M)
-    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,conj(AL))
-    _, AR = rightorth(A)
-    λR,FR = rightenv(AR, M)
-    @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(AR,FR,M,conj(AR))
-end
-
-@testset "observable leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
-    Random.seed!(100)
-    d = 2
-    D = 10
-
-    β = rand(dtype)
-    A = atype(rand(dtype,D,d,D))
-    M = atype(model_tensor(Ising(),β))
-    
-    AL, = leftorth(A)
-    λL,FL = obs_FL(AL, AL, M)
-    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,AL)
-    _, AR = rightorth(A)
-    λR,FR = obs_FR(AR, AR, M)
-    @test λR * FR ≈ ein"((αpγ,γcη),ascp),βsη -> αaβ"(AR,FR,M,AR)
+    ALo, = leftorth(A)
+    ALn, = leftorth(A)
+    λL,FL = leftenv(ALo, ALn, M)
+    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALo,M,ALn)
+    _, ARo = rightorth(A)
+    _, ARn = rightorth(A)
+    λR,FR = rightenv(ARo, ARn, M)
+    @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(ARo,FR,M,ARn)
 end
 
 @testset "normalization leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]

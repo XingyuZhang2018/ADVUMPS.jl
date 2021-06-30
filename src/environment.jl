@@ -113,20 +113,20 @@ function rightorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol =
 end
 
 """
-    leftenv(A, M, FL; kwargs)
+    λ, FL = leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1), size(M,1), size(ALo,1))); kwargs...)
 
 Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
-of `AL - M - conj(AL)` contracted along the physical dimension.
+of `ALo - M - ALn` contracted along the physical dimension.
 ```
-┌── AL─       ┌──         
-│   │         │             
-FL─ M ─  = λL FL─         
-│   │         │             
-┕── AL─       ┕──        
+┌── ALo─       ┌──         
+│    │         │             
+FL ─ M ─  = λL FL─         
+│    │         │             
+┕── ALn─       ┕──        
 ```
 """
-function leftenv(AL, M, FL = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(AL,1))); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,AL,M,conj(AL)), FL, 1, :LM; ishermitian = false, kwargs...)
+function leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1), size(M,1), size(ALo,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALo,M,conj(ALn)), FL, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -139,20 +139,20 @@ function leftenv(AL, M, FL = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,
 end
 
 """
-    rightenv(A, M, FR; kwargs...)
+    λ, FR = rightenv(ARo, ARn, M, FR = _arraytype(ARo)(randn(eltype(ARo), size(ARo,1), size(M,3), size(ARo,1))); kwargs...)
 
 Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
-of `AR - M - conj(AR)`` contracted along the physical dimension.
+of `ARo - M - ARn` contracted along the physical dimension.
 ```
- ─ AR──┐         ──┐   
-   │   │           │   
- ─ M ──FR   = λR ──FR  
-   │   │           │   
- ─ AR──┘         ──┘  
+ ─ ARo──┐         ──┐   
+    │   │           │   
+ ─  M ──FR   = λR ──FR  
+    │   │           │   
+ ─ ARn──┘         ──┘  
 ```
 """
-function rightenv(AR, M, FR = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(AR,1))); kwargs...)
-    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(AR,FR,M,conj(AR)), FR, 1, :LM; ishermitian = false, kwargs...)
+function rightenv(ARo, ARn, M, FR = _arraytype(ARo)(randn(eltype(ARo), size(ARo,1), size(M,3), size(ARo,1))); kwargs...)
+    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(ARo,FR,M,conj(ARn)), FR, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -161,44 +161,6 @@ function rightenv(AR, M, FR = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(
     #         return real(λs[2]), real(FRs[2])
     #     end
     # end
-    return real(λs[1]), real(FRs[1])
-end
-
-"""
-    λ, FL = obs_FL(ALu, ALd, M, FL; kwargs...)
-
-Compute the left environment tensor for observable, by finding the left fixed point
-of `ALu - M - ALd` contracted along the physical dimension.
-```
-┌── ALu─      ┌──         
-│   │         │             
-FL─ M ─  = λL FL─         
-│   │         │             
-┕── ALd─      ┕──        
-```
-"""
-function obs_FL(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALu,M,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
-    # println("obs_FL $(λs)") 
-    return real(λs[1]), real(FLs[1])
-end
-
-"""
-    λ, FR = obs_FR(ARu, ARd, M, FR; kwargs...)
-
-Compute the right environment tensor for observable, by finding the right fixed point
-of `ARu - M - ARd`` contracted along the physical dimension.
-```
- ─ ARu──┐         ──┐   
-    │   │           │   
- ─  M ──FR   = λR ──FR  
-    │   │           │   
- ─ ARd──┘         ──┘  
-```
-"""
-function obs_FR(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
-    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(ARu,FR,M,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
-    # println("obs_FR $(λs)") 
     return real(λs[1]), real(FRs[1])
 end
 

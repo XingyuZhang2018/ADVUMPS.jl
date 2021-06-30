@@ -1,6 +1,6 @@
 using ADVUMPS
 using ADVUMPS: num_grad
-using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv,obs_FL,obs_FR
+using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv
 using ADVUMPS: energy,magofdβ
 using ChainRulesCore
 using CUDA
@@ -83,9 +83,9 @@ end
     function foo(x)
         C = A * x
         D = B * x
-        E = Array(ein"abc,abc -> "(C,C))[]
-        F = Array(ein"ab,ab -> "(D,D))[]
-        return E/F
+        E = ein"abc,abc -> "(C,C)
+        F = ein"ab,ab -> "(D,D)
+        return Array(E)[]/Array(F)[]
     end 
     Zygote.gradient(foo, 1)[1]
 end
@@ -145,36 +145,38 @@ end
     # oc = getoc(ein, xs)
 end
 
-@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
     A = atype(rand(dtype,D,d,D))
     
-    AL, = leftorth(A)
-    _, AR = rightorth(A)
+    ALu, = leftorth(A)
+    ALd, = leftorth(A)
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
 
     S = atype(rand(D,d,D,D,d,D))
     function foo1(β)
         M = atype(model_tensor(Ising(),β))
-        _,FL = leftenv(AL, M)
-        A = ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)[]
-        B = ein"γcη,ηcγ -> "(FL,FL)[]
-        return A/B
+        _,FL = leftenv(ALu, ALd, M)
+        A = ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)
+        B = ein"γcη,ηcγ -> "(FL,FL)
+        return Array(A)[]/Array(B)[]
     end 
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
 
     function foo2(β)
         M = atype(model_tensor(Ising(),β))
-        _,FR = rightenv(AR, M)
-        A = ein"γcη,ηcγαaβ,daα -> βd"(FR,S,FR)
-        B = ein"γcη,ηca -> γa"(FR,FR)
+        _,FR = rightenv(ARu, ARd, M)
+        A = ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)
+        B = ein"γcη,ηcγ -> "(FR,FR)
         return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
-@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
@@ -184,17 +186,17 @@ end
     M = atype(model_tensor(Ising(),β))
     
     AL,C = leftorth(A)
-    λL,FL = leftenv(AL, M)
+    λL,FL = leftenv(AL, AL, M)
     _, AR = rightorth(A)
-    λR,FR = rightenv(AR, M)
+    λR,FR = rightenv(AR, AR, M)
     AC = ein"asc,cb -> asb"(AL,C)
 
     S = atype(rand(D,d,D,D,d,D))
     function foo1(β)
         M = atype(model_tensor(Ising(),β))
         _, AC = ACenv(AC, FL, M, FR)
-        A = ein"γcη,ηcγαaβ,daα -> βd"(AC,S,AC)
-        B = ein"γcη,ηca -> γa"(AC,AC)
+        A = ein"γcη,ηcγαaβ,βaα -> "(AC,S,AC)
+        B = ein"γcη,ηcγ -> "(AC,AC)
         return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
@@ -202,17 +204,17 @@ end
     S = atype(rand(D,D,D,D))
     function foo2(β)
         M = atype(model_tensor(Ising(),β))
-        _,FL = leftenv(AL, M)
-        _,FR = rightenv(AR, M)
+        _,FL = leftenv(AL, AL, M)
+        _,FR = rightenv(AR, AR, M)
         _, C = Cenv(C, FL, FR)
-        A = ein"γη,ηγαa,bα -> ab"(C,S,C)
-        B = ein"ab,ac -> bc"(C,C)
+        A = ein"γη,ηγαa,aα -> "(C,S,C)
+        B = ein"ab,ab -> "(C,C)
         return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
-@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
@@ -244,45 +246,16 @@ end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
-@testset "obs leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
+@testset "vumps with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
-    d = 2
-    D = 10
-    A = atype(rand(dtype,D,d,D))
-    
-    ALu, = leftorth(A)
-    ALd, = leftorth(A)
-    _, ARu = rightorth(A)
-    _, ARd = rightorth(A)
-
-    S = atype(rand(D,d,D,D,d,D))
-    function foo1(β)
-        M = atype(model_tensor(Ising(),β))
-        _,FL = obs_FL(ALu, ALd, M)
-        A = ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)[]
-        B = ein"γcη,ηcγ -> "(FL,FL)[]
-        return A/B
-    end 
-    @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
-
-    function foo2(β)
-        M = atype(model_tensor(Ising(),β))
-        _,FR = obs_FR(ARu, ARd, M)
-        A = ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)[]
-        B = ein"γcη,ηcγ -> "(FR,FR)[]
-        return A/B
+    χ = 10
+    model = Ising()
+    function foo1(β) 
+        M = atype(model_tensor(model, β))
+        env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
+        magnetisation(env,Ising(),β)
     end
-    @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
-end
-
-@testset "vumps with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
-    Random.seed!(100)
-    β,D = 0.5,10
-    foo1 = β -> -log(Z(vumps_env(Ising(),β,D; atype = atype)))
-    @test Zygote.gradient(foo1,β)[1] ≈ energy(vumps_env(Ising(),β,D;atype = atype),Ising(), β) atol = 1e-6
-    @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
-
-    foo2 = β -> magnetisation(vumps_env(Ising(),β,D; atype = atype), Ising(), β)
-    @test isapprox(num_grad(foo2,β), magofdβ(Ising(),β), atol = 1e-3)
-    @test isapprox(Zygote.gradient(foo2,β)[1], magofdβ(Ising(),β), atol = 1e-6)
+    for β = 0.2:0.2:0.8
+        @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    end
 end

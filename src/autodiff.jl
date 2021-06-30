@@ -38,33 +38,41 @@ function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
 end
 
 """
-    ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
+    ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
 
 ```
-           ┌──  AL ──┐ 
-           │    │    │ 
-dM   =  - FL ──   ── ξl
-           │    │    │ 
-           └──  AL ──┘ 
+           ┌──  ALu  ──┐ 
+           │     │     │ 
+dM    = - FL  ──   ──  ξl
+           │     │     │ 
+           └──  ALd  ──┘ 
 
-           ┌──     ──┐         ┌──  AL ──┐ 
-           │    │    │         │    │    │ 
-dAL  =  - FL ── M ── ξl   -   FL ── M ── ξl
-           │    │    │         │    │    │ 
-           └──  AL ──┘         └──     ──┘ 
+           ┌──       ──┐   
+           │     │     │   
+dALu  = -  FL ── M ──  ξl  
+           │     │     │   
+           └──  ALd  ──┘   
+
+           ┌──  ALu  ──┐ 
+           │     │     │ 
+dALd  = -  FL ── M ──  ξl
+           │     │     │ 
+           └──       ──┘ 
 ```
 """
-function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
-    λl, FL = leftenv(AL, M, FL)
+
+function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
+    λl, FL = leftenv(ALu, ALd, M, FL)
     # @show λl
     function back((dλ, dFL))
-        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(AL, FR, M, conj(AL)), permutedims(dFL, (3, 2, 1)), -λl, 1)
+        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1)
         # @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
-        dAL = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, conj(AL), M, ξl) - ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, AL, M, ξl)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, AL, conj(AL), ξl)
-        return NO_FIELDS, dAL, dM, NO_FIELDS...
+        dALu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, ALd, M, ξl) 
+        dALd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, ALu, M, ξl)
+        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, ALu, ALd, ξl)
+        return NO_FIELDS, dALu, dALd, dM, NO_FIELDS...
     end
     return (λl, FL), back
 end
@@ -73,30 +81,37 @@ end
     ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
 
 ```
-          ┌──  AR ──┐ 
-          │    │    │ 
-dM   =   ξr ──   ── FR
-          │    │    │ 
-          └──  AR ──┘ 
+           ┌──  ARu  ──┐ 
+           │     │     │ 
+dM    = - ξr  ──   ──  FR
+           │     │     │ 
+           └──  ARd  ──┘ 
 
-          ┌──     ──┐         ┌──  AR ──┐ 
-          │    │    │         │    │    │ 
-dAR  =   ξr ── M ── FR   +   ξr ── M ── FR
-          │    │    │         │    │    │ 
-          └──  AR ──┘         └──     ──┘
+           ┌──       ──┐   
+           │     │     │   
+dARu  = -  ξr ── M ──  FR  
+           │     │     │   
+           └──  ARd  ──┘   
+
+           ┌──  ARu  ──┐ 
+           │     │     │ 
+dARu  = -  ξr ── M ──  FR
+           │     │     │ 
+           └──       ──┘
 ```
 """
-function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-    λr, FR = rightenv(AR, M, FR)
+function ChainRulesCore.rrule(::typeof(rightenv), ARu::AbstractArray{T}, ARd::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
+    λr, FR = rightenv(ARu, ARd, M, FR)
     # @show λr
     function back((dλ, dFR))
-        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(AR, FL, M, conj(AR)), permutedims(dFR, (3, 2, 1)), -λr, 1)
+        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1)
         # @assert info.converged==1
         # errR = ein"abc,cba ->"(ξr, FR)[]
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
-        dAR = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, conj(AR), M, FR) - ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, AR, M, FR)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, AR, conj(AR), FR)
-        return NO_FIELDS, dAR, dM, NO_FIELDS...
+        dARu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, ARd, M, FR) 
+        dARd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, ARu, M, FR)
+        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, ARu, ARd, FR)
+        return NO_FIELDS, dARu, dARd, dM, NO_FIELDS...
     end
     return (λr, FR), back
 end
@@ -265,38 +280,6 @@ function ChainRulesCore.rrule(::typeof(bigrightenv), ARu::AbstractArray{T}, ARd:
         return NO_FIELDS, dARu, dARd, dM, NO_FIELDS...
     end
     return (λr, FR4), back
-end
-
-function ChainRulesCore.rrule(::typeof(obs_FL), ALu::AbstractArray{T}, ALd::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
-    λl, FL = obs_FL(ALu, ALd, M, FL)
-    # @show λl
-    function back((dλ, dFL))
-        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1)
-        # @assert info.converged==1
-        # errL = ein"abc,cba ->"(FL, ξl)[]
-        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
-        dALu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, ALd, M, ξl) 
-        dALd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, ALu, M, ξl)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, ALu, ALd, ξl)
-        return NO_FIELDS, dALu, dALd, dM, NO_FIELDS...
-    end
-    return (λl, FL), back
-end
-
-function ChainRulesCore.rrule(::typeof(obs_FR), ARu::AbstractArray{T}, ARd::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-    λr, FR = obs_FR(ARu, ARd, M, FR)
-    # @show λr
-    function back((dλ, dFR))
-        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1)
-        # @assert info.converged==1
-        # errR = ein"abc,cba ->"(ξr, FR)[]
-        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
-        dARu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, ARd, M, FR) 
-        dARd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, ARu, M, FR)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, ARu, ARd, FR)
-        return NO_FIELDS, dARu, dARd, dM, NO_FIELDS...
-    end
-    return (λr, FR), back
 end
 
 @doc raw"
