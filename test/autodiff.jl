@@ -1,6 +1,6 @@
 using ADVUMPS
-using ADVUMPS: num_grad, safetr
-using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv
+using ADVUMPS: num_grad
+using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv,obs_FL,obs_FR
 using ADVUMPS: energy,magofdβ
 using ChainRulesCore
 using CUDA
@@ -169,7 +169,7 @@ end
         _,FR = rightenv(AR, M)
         A = ein"γcη,ηcγαaβ,daα -> βd"(FR,S,FR)
         B = ein"γcη,ηca -> γa"(FR,FR)
-        return safetr(A)/safetr(B)
+        return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
@@ -195,7 +195,7 @@ end
         _, AC = ACenv(AC, FL, M, FR)
         A = ein"γcη,ηcγαaβ,daα -> βd"(AC,S,AC)
         B = ein"γcη,ηca -> γa"(AC,AC)
-        return safetr(A)/safetr(B)
+        return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
 
@@ -207,7 +207,7 @@ end
         _, C = Cenv(C, FL, FR)
         A = ein"γη,ηγαa,bα -> ab"(C,S,C)
         B = ein"ab,ac -> bc"(C,C)
-        return safetr(A)/safetr(B)
+        return Array(A)[]/Array(B)[]
     end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
@@ -219,26 +219,58 @@ end
 
     A = atype(rand(dtype,D,d,D))
 
-    AL, = leftorth(A)
-    _, AR = rightorth(A)
-
+    ALu, = leftorth(A)
+    ALd, = leftorth(A)
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
     S = atype(rand(D,d,d,D,D,d,d,D))
     function foo1(β)
         M = atype(model_tensor(Ising(),β))
-        _,FL4 = bigleftenv(AL, M)
-        A = ein"abcd,ibcdefgh,efgh -> ai"(FL4,S,FL4)
-        B = ein"abcd,ebcd -> ae"(FL4,FL4)
-        return safetr(A)/safetr(B)
+        _,FL4 = bigleftenv(ALu, ALd, M)
+        A = ein"abcd,abcdefgh,efgh -> "(FL4,S,FL4)
+        B = ein"abcd,abcd -> "(FL4,FL4)
+        return Array(A)[]/Array(B)[]
     end 
     @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
 
     S = atype(rand(D,d,d,D,D,d,d,D))
     function foo2(β)
         M = atype(model_tensor(Ising(),β))
-        _,FR4 = bigrightenv(AR, M)
-        A = ein"abcd,ibcdefgh,efgh -> ai"(FR4,S,FR4)
-        B = ein"abcd,ebcd -> ae"(FR4,FR4)
-        return safetr(A)/safetr(B)
+        _,FR4 = bigrightenv(ARu, ARd, M)
+        A = ein"abcd,abcdefgh,efgh -> "(FR4,S,FR4)
+        B = ein"abcd,abcd -> "(FR4,FR4)
+        return Array(A)[]/Array(B)[]
+    end
+    @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
+end
+
+@testset "obs leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
+    Random.seed!(100)
+    d = 2
+    D = 10
+    A = atype(rand(dtype,D,d,D))
+    
+    ALu, = leftorth(A)
+    ALd, = leftorth(A)
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
+
+    S = atype(rand(D,d,D,D,d,D))
+    function foo1(β)
+        M = atype(model_tensor(Ising(),β))
+        _,FL = obs_FL(ALu, ALd, M)
+        A = ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)[]
+        B = ein"γcη,ηcγ -> "(FL,FL)[]
+        return A/B
+    end 
+    @test Zygote.gradient(foo1, 1)[1] ≈ num_grad(foo1, 1) atol = 1e-8
+
+    function foo2(β)
+        M = atype(model_tensor(Ising(),β))
+        _,FR = obs_FR(ARu, ARd, M)
+        A = ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)[]
+        B = ein"γcη,ηcγ -> "(FR,FR)[]
+        return A/B
     end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end

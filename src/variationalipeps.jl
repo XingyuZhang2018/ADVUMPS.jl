@@ -10,33 +10,24 @@ ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, ipeps::IPEPS, oc, key; verbose = false)
     model, atype, _, χ, tol, maxiter = key
-    ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
+    # ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
     ap = ein"abcdx,ijkly -> aibjckdlxy"(ipeps.bulk, conj(ipeps.bulk))
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
-    folder = "./data/$(model)/"
-    mkpath(folder)
-    chkp_file = folder*"vumps_env_D$(D)_chi$(χ).jld2"
-    if isfile(chkp_file)
-        rt = SquareVUMPSRuntime(a, chkp_file, χ; verbose = verbose)
-    else
-        rt = SquareVUMPSRuntime(a, Val(:random), χ; verbose = verbose)
-    end
-    env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    Zygote.@ignore begin
-        M, AL, C, AR, FL, FR = env.M, Array{Float64,3}(env.AL), Array{Float64,2}(env.C), Array{Float64,3}(env.AR), Array{Float64,3}(env.FL), Array{Float64,3}(env.FR)
-        envsave = SquareVUMPSRuntime(M, AL, C, AR, FL, FR)
-        save(chkp_file, "env", envsave)
-    end
+
+    env = obs_env(model, a; atype = atype, D = D, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true)
     e = expectationvalue(h, ap, env, oc)
     return e
 end
 
 function optcont(D::Int, χ::Int)
     sd = Dict('n' => D^2, 'f' => χ, 'd' => D^2, 'e' => χ, 'o' => D^2, 'h' => χ, 'j' => χ, 'i' => D^2, 'k' => D^2, 'r' => 2, 's' => 2, 'q' => 2, 'a' => χ, 'c' => χ, 'p' => 2, 'm' => χ, 'g' => D^2, 'l' => χ, 'b' => D^2)
-    optimize_greedy(ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs", sd; method=MinSpaceDiff())
+    oc1 = optimize_greedy(ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs", sd; method=MinSpaceDiff())
+    sd = Dict('a' => χ, 'b' => D^2, 'c' => χ, 'd' => D^2, 'e' => D^2, 'f' => D^2, 'g' => D^2, 'h' => D^2, 'i' => χ, 'j' => D^2, 'k' => χ, 'r' => 2, 's' => 2, 'p' => 2, 'q' => 2, 'l' => χ, 'm' => χ)
+    oc2 = optimize_greedy(ein"adgi,abl,lc,dfebpq,gjhfrs,ijm,mk,cehk -> pqrs", sd; method=MinSpaceDiff())
+    oc1, oc2
 end
 
 """
@@ -46,23 +37,27 @@ return the expectationvalue of a two-site operator `h` with the sites
 described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
-function expectationvalue(h, ap, env::SquareVUMPSRuntime, oc)
-    AL,C,AR,FL,FR = env.AL,env.C,env.AR,env.FL,env.FR
+function expectationvalue(h, ap, env, oc)
+    M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = env
+    oc1, oc2 = oc
     ap /= norm(ap)
+    etol = 0
 
-    lr = oc(FL,AL,ap,conj(AL),C,conj(C),FR,AR,ap,conj(AR))
-    e = Array(ein"pqrs, pqrs -> "(lr,h))[]
-    n = Array(ein"pprr -> "(lr))[]
+    lr = oc1(FL,ALu,ap,ALd,Cu,Cd,FR,ARu,ap,ARd)
+    e = ein"pqrs, pqrs -> "(lr,h)
+    n = ein"pprr -> "(lr)
+    println("── = $(Array(e)[]/Array(n)[])") 
+    etol += Array(e)[]/Array(n)[]
 
-    # AC = ein"asc,cb -> asb"(AL,C)
-    # _, FL4 = bigleftenv(AL, M)
-    # _, FR4 = bigrightenv(AR, M)
-    # e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
-    # n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
-    # n2 = ein"pprr -> "(n2)[]
-    # @show e/n e2/n2 (e/n+e2/n2)/2
+    _, BgFL = bigleftenv(ALu, ALd, M)
+    _, BgFR = bigrightenv(ARu, ARd, M)
+    lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
+    e2 = ein"pqrs, pqrs -> "(lr2,h)
+    n2 = ein"pprr -> "(lr2)
+    println("| = $(Array(e2)[]/Array(n2)[])") 
+    etol += Array(e2)[]/Array(n2)[]
 
-    return e/n
+    return etol/2
 end
 
 """
@@ -84,7 +79,7 @@ function init_ipeps(model::HamiltonianModel; atype = Array, D::Int, χ::Int, tol
         verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps = SquareIPEPS(bulk)
-    ipeps = indexperm_symmetrize(ipeps)
+    # ipeps = indexperm_symmetrize(ipeps)
     return ipeps, key
 end
 

@@ -150,7 +150,7 @@ end
     @test λC * C ≈ ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR)
 end
 
-@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 10
@@ -159,12 +159,14 @@ end
     A = atype(rand(dtype,D,d,D))
     M = atype(model_tensor(Ising(),β))
 
-    AL, = leftorth(A)
-    λL,FL4 = bigleftenv(AL, M)
-    @test λL * FL4 ≈ ein"dcba,def,ckge,bjhk,aji -> fghi"(FL4,AL,M,M,conj(AL))
+    ALu, = leftorth(A)
+    ALd, = leftorth(A)
+    λL,FL4 = bigleftenv(ALu, ALd, M)
+    @test λL * FL4 ≈ ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ALu,M,M,ALd)
 
-    C, AR = rightorth(A)
-    λR,FR4 = bigrightenv(AR, M)
-    @test λR * FR4 ≈ ein"fghi,def,ckge,bjhk,aji -> dcba"(FR4,AR,M,M,conj(AR))
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
+    λR,FR4 = bigrightenv(ARu, ARd, M)
+    @test λR * FR4 ≈ ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ARu,M,M,ARd)
 end
 

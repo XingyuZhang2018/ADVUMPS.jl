@@ -237,43 +237,43 @@ function norm_FR(ARu, ARd, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), 
 end
 
 """
-    λ, FL4 = bigleftenv(AL, M, FL4 = rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1)); kwargs...)
+    λ, FL4 = bigleftenv(ALu, ALd, M, FL4 = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1))); kwargs...)
 
 Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
-of `AL - M - M - conj(AL)` contracted along the physical dimension.
+of `ALu - M - M - ALd` contracted along the physical dimension.
 ```
-┌── AL─       ┌──         
-│   │         │             
-│── M ─       │──       
-FL4 │    = λL FL4  
-│── M ─       │──
-│   │         │
-┕── AL─       ┕──        
+┌── ALu─       ┌──         
+│    │         │             
+│ ── M ─       │──       
+FL4  │    = λL FL4  
+│ ── M ─       │──
+│    │         │
+┕── ALd─       ┕──        
 ```
 """
-function bigleftenv(AL, M, FL4 = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1))); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,AL,M,M,conj(AL)), FL4, 1, :LM; ishermitian = false, kwargs...)
+function bigleftenv(ALu, ALd, M, FL4 = _arraytype(ALu)(rand(eltype(ALu), size(ALu,3), size(M,1), size(M,1), size(ALd,3))); kwargs...)
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ALu,M,M,ALd), FL4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFL4s
     return real(λFL4s[1]), real(FL4s[1])
 end
 
 """
-    λ, FR4 = bigrightenv(AR, M, FR4 = randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1)); kwargs...)
+    λ, FR4 = bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(randn(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
 
 Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
-of `AR - M - conj(AR)`` contracted along the physical dimension.
+of `ARu - M - ARd` contracted along the physical dimension.
 ```
- ─ AR──┐         ──┐ 
-   │   │           │ 
- ─ M ──│         ──│ 
-   │  FR4   = λR  FR4
- ─ M ──│         ──│ 
-   │   │           │ 
- ─ AR──┘         ──┘ 
+ ─ ARu──┐         ──┐ 
+    │   │           │ 
+ ─  M ──│         ──│ 
+    │  FR4   = λR  FR4
+ ─  M ──│         ──│ 
+    │   │           │ 
+ ─ ARd──┘         ──┘ 
 ```
 """
-function bigrightenv(AR, M, FR4 = _arraytype(AR)(randn(eltype(AR), size(AR,1), size(M,3), size(M,3), size(AR,1))); kwargs...)
-    λFR4s, FR4s, info = eigsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,AR,M,M,conj(AR)), FR4, 1, :LM; ishermitian = false, kwargs...)
+function bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(randn(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
+    λFR4s, FR4s, info = eigsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ARu,M,M,ARd), FR4, 1, :LM; ishermitian = false, kwargs...)
     # @show λFR4s
     return real(λFR4s[1]), real(FR4s[1])
 end
@@ -376,9 +376,14 @@ MAC2 =  FL─ M ──FR  =  λAC  │     │
     │                 │
 ````
 """
-function error(AL,C,FL,M,FR)
+function error(AL,C,AR,FL,M,FR)
     AC = ein"asc,cb -> asb"(AL,C)
     MAC = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
+    # MC = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
+    # MAL, MAR, _, _ = ACCtoALAR(MAC, MC)
+    # _, FL_n = norm_FL(MAL, AL)
+    # _, FR_n = norm_FR(MAR, AR)
+    # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,MAL,MC,AL,C,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,MC,FR_n,C)[])") 
     MAC -= ein"asd,(cpd,cpb) -> asb"(AL,conj(AL),MAC)
     norm(MAC)
 end

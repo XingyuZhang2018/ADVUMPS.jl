@@ -116,7 +116,7 @@ function vumpstep(rt::VUMPSRuntime,err)
     # FL = backratio .* FL + Zygote.@ignore (1-backratio) .* FL
     # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
 
-    err = error(AL,C,FL,M,FR)
+    err = error(AL,C,AR,FL,M,FR)
     return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
 end
 
@@ -131,7 +131,6 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     if isfile(chkp_file)                               
         rtup = SquareVUMPSRuntime(Mu, chkp_file, χ; verbose = verbose)   
     else
-        # Random.seed!(100)
         rtup = SquareVUMPSRuntime(Mu, Val(:random), χ; verbose = verbose)
     end
     envup = vumps(rtup; tol=tol, maxiter=maxiter, verbose = verbose)
@@ -144,22 +143,12 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     end
 
     Md = permutedims(Mu, (1,4,3,2))
-
-    if isfile(chkp_file)                               
-        rtdown = SquareVUMPSRuntime(Md, chkp_file, χ; verbose = verbose)   
-    else
-        # Random.seed!(100)
-        rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)
-    end
+                             
+    rtdown = SquareVUMPSRuntime(Md, chkp_file, χ; verbose = verbose)   
     envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
-    Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
-        envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
-        save(chkp_file, "env", envsave)
-    end
     ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
 
-    @show norm(ALu - ALd),norm(ARu - ARd)
+    # @show norm(ALu - ALd),norm(ARu - ARd)
     # _, FL_n = norm_FL(ALu, ALd)
     # _, FR_n = norm_FR(ARu, ARd)
     # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
