@@ -1,6 +1,6 @@
 using ADVUMPS
 using ADVUMPS: num_grad
-using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,bigleftenv,bigrightenv
+using ADVUMPS: qrpos,lqpos,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv
 using ADVUMPS: energy,magofdβ
 using ChainRulesCore
 using CUDA
@@ -37,7 +37,7 @@ end
     function foo5(x)
         A = M .* x
         Q, R = qrpos(A)
-        return norm(Q) + norm(R)
+        return norm(Q)
     end
     @test isapprox(Zygote.gradient(foo5, 1)[1], num_grad(foo5, 1), atol = 1e-5)
 end
@@ -47,7 +47,7 @@ end
     function foo6(x)
         A = M .*x
         L, Q = lqpos(A)
-        return norm(L) + norm(Q)
+        return  norm(Q)
     end
     @test isapprox(Zygote.gradient(foo6, 1)[1], num_grad(foo6, 1), atol = 1e-5)
 end
@@ -160,7 +160,7 @@ end
     function foo1(β)
         M = atype(model_tensor(Ising(),β))
         _,FL = leftenv(ALu, ALd, M)
-        A = ein"γcη,ηcγαaβ,βaα -> "(FL,S,FL)
+        A = ein"(γcη,ηcγαaβ),βaα -> "(FL,S,FL)
         B = ein"γcη,ηcγ -> "(FL,FL)
         return Array(A)[]/Array(B)[]
     end 
@@ -169,7 +169,7 @@ end
     function foo2(β)
         M = atype(model_tensor(Ising(),β))
         _,FR = rightenv(ARu, ARd, M)
-        A = ein"γcη,ηcγαaβ,βaα -> "(FR,S,FR)
+        A = ein"(γcη,ηcγαaβ),βaα -> "(FR,S,FR)
         B = ein"γcη,ηcγ -> "(FR,FR)
         return Array(A)[]/Array(B)[]
     end
@@ -214,6 +214,47 @@ end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
+@testset "ACCtoALAR with $atype{$dtype}" for atype in [Array], dtype in [Float64], Ni = [2], Nj = [2]
+    Random.seed!(100)
+    D, d = 5, 2
+
+    A = atype(rand(dtype, D, d, D))
+    S1 = atype(rand(dtype, D, d, D, D, d, D))
+    S2 = atype(rand(dtype, D, D, D, D))
+
+    ALu,Cp = leftorth(A)
+    ALd,Cp = leftorth(A)
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
+    M = atype(model_tensor(Ising(),1))
+    _, FL = leftenv(ALu, ALd, M)
+    _, FR = rightenv(ARu, ARd, M)
+
+    ACp = ein"asc,cb -> asb"(ALu,Cp)
+
+    function foo1(β)
+        M = atype(model_tensor(Ising(),β))
+        _, AC = ACenv(ACp, FL, M, FR)
+        _, C = Cenv(Cp, FL, FR)
+        AL, AR = ACCtoALAR(AC, C)
+        s = 0
+        A = ein"(γcη,ηcγαaβ),βaα -> "(AC, S1, AC)
+        B = ein"γcη,γcη -> "(AC, AC)
+        s += Array(A)[]/Array(B)[]
+        A = ein"(γcη,ηcγαaβ),βaα -> "(AL, S1, AL)
+        B = ein"γcη,γcη -> "(AL, AL)
+        s += Array(A)[]/Array(B)[]
+        A = ein"(γcη,ηcγαaβ),βaα -> "(AR, S1, AR)
+        B = ein"γcη,γcη -> "(AR, AR)
+        s += Array(A)[]/Array(B)[]
+        A = ein"(γη,ηγαβ),βα -> "(C, S2, C)
+        B = ein"γη,γη -> "(C, C)
+        s += Array(A)[]/Array(B)[]
+        return s
+    end
+    @test isapprox(Zygote.gradient(foo1, 1)[1], num_grad(foo1, 1), atol=1e-4)
+end
+
 @testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
@@ -250,12 +291,21 @@ end
     Random.seed!(100)
     χ = 10
     model = Ising()
-    function foo1(β) 
+    function foo1(β)
         M = atype(model_tensor(model, β))
-        env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
+        env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-10, maxiter = 20, verbose = true, savefile = false)
         magnetisation(env,Ising(),β)
     end
-    for β = 0.2:0.2:0.8
-        @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    # for β = 0.5
+    #     @show num_grad(foo1,β)
+    #     @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    # end
+
+    function foo2(β) 
+        magnetisation(vumps_env(Ising(),β,χ; tol = 1e-20, maxiter = 20, verbose = true), Ising(), β)
+    end
+    for β = 0.4
+        @show num_grad(foo2,β)
+        @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-8
     end
 end

@@ -102,10 +102,10 @@ function vumpstep(rt::VUMPSRuntime,err)
     # Zygote.@ignore print(round(-log(10,backratio)),' ')
     M,AL,C,AR,FL,FR = rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
-    # ACp = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
-    # Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
-    _, ACp = ACenv(AC, FL, M, FR)
-    _, Cp = Cenv(C, FL, FR)
+    ACp = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
+    Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
+    # _, ACp = ACenv(AC, FL, M, FR)
+    # _, Cp = Cenv(C, FL, FR)
     ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
     _, FL = leftenv(AL, ALp, M, FL)
     _, FR = rightenv(AR, ARp, M, FR)
@@ -150,28 +150,33 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     end
 
     Md = permutedims(Mu, (1,4,3,2))
-    chkp_file_down = "./data/$(model)_$(atype)/down_D$(D)_chi$(χ).jld2"
-    verbose && print("↓ ")
-    if isfile(chkp_file_down) 
-        rtdown = SquareVUMPSRuntime(Md, chkp_file_down, χ; verbose = verbose)    
-    else      
-        rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)   
-    end
-    envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
-    ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
+    FLd = permutedims(FL, (3,2,1))
+    FRd = permutedims(FR, (3,2,1))
+    ACp = Zygote.@ignore ein"asc,cb -> asb"(ALu,Cu)
+    _, ACd = ACenv(ACp, FLd, Md, FRd)
+    # chkp_file_down = "./data/$(model)_$(atype)/down_D$(D)_chi$(χ).jld2"
+    # verbose && print("↓ ")
+    # if isfile(chkp_file_up) 
+    #     rtdown = SquareVUMPSRuntime(Md, chkp_file_up, χ; verbose = verbose)    
+    # else      
+    #     rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)   
+    # end
+    # envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
+    # ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
 
-    Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
-        envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
-        save(chkp_file_down, "env", envsave)
-    end  
+    # Zygote.@ignore savefile && begin
+    #     ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
+    #     envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
+    #     save(chkp_file_down, "env", envsave)
+    # end  
     # @show norm(ALu - ALd),norm(ARu - ARd)
     # _, FL_n = norm_FL(ALu, ALd)
     # _, FR_n = norm_FR(ARu, ARd)
     # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
     # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
 
-    _, FL = leftenv(ALu, ALd, Mu, FL)
-    _, FR = rightenv(ARu, ARd, Mu, FR)
-    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
+    # _, FL = leftenv(ALu, ALd, Mu, FL)
+    # _, FR = rightenv(ARu, ARd, Mu, FR)
+    # Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
+    Mu, ALu, Cu, ARu, ACd, FL, FR
 end

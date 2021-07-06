@@ -88,12 +88,11 @@ end
 return the up and down magnetisation of the `model`. Requires that `mag_tensor` are defined for `model`.
 """
 function magnetisation(env, model::MT, β) where {MT <: HamiltonianModel}
-    M, ALu, Cu, _, ALd, Cd, _, FL, FR = env
+    M, ALu, Cu, _, ACd, FL, FR = env
     Mag = _arraytype(M)(mag_tensor(model, β))
     ACu = ein"asc,cb -> asb"(ALu,Cu)
-    ACd = ein"asc,cb -> asb"(ALd,Cd)
-    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Mag,FR,ACd)
-    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
+    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Mag,FR,ACu)
+    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACu)
     return abs(Array(mag)[]/Array(λ)[])
 end
 
@@ -105,10 +104,9 @@ temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Requires that `model_tensor` are defined for `model`.
 """
 function energy(env, model::MT, β) where {MT <: HamiltonianModel}
-    M, ALu, Cu, _, ALd, Cd, _, FL, FR = env
+    M, ALu, Cu, _, ACd, FL, FR = env
     Ene = _arraytype(M)(energy_tensor(model, β))
     ACu = ein"asc,cb -> asb"(ALu,Cu)
-    ACd = ein"asc,cb -> asb"(ALd,Cd)
     energy = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Ene,FR,ACd)
     λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
     return Array(energy)[]/Array(λ)[]*2 # factor 2 for counting horizontal and vertical links

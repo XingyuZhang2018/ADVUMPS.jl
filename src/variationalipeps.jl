@@ -38,7 +38,7 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc)
-    M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = env
+    M, ALu, Cu, ARu, ACd, FL, FR = env
     oc1, oc2 = oc
     ap /= norm(ap)
     etol = 0
