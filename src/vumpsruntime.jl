@@ -106,11 +106,12 @@ function vumpstep(rt::VUMPSRuntime,err)
     # Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
     _, ACp = ACenv(AC, FL, M, FR)
     _, Cp = Cenv(C, FL, FR)
+    # @show ein"abc,abc -> "(ACp,ACp)[],ein"ab,ab -> "(Cp,Cp)[]
     ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
     _, FL = leftenv(AL, ALp, M, FL)
     _, FR = rightenv(AR, ARp, M, FR)
     _, AC = ACenv(ACp, FL, M, FR)
-    _, C = Cenv(Cp, FL, FR)
+    _, C = Cenv(C, FL, FR)
     AL, AR, _, _ = ACCtoALAR(AC, C)
 
     ##### avoid gradient explosion for too many iterations #####
@@ -170,6 +171,14 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     # _, FR_n = norm_FR(ARu, ARd)
     # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
     # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
+
+    # 王 = ein"(abc,dfeb),gfh -> adgceh"(ARu,Mu,ARd)
+    # 工 = ein"abc,dbe -> adce"(ARu,ARd)
+    # up = reshape(王,χ^2*D,χ^2*D)
+    # down = reshape(工,χ^2,χ^2)
+    # λups, =  eigsolve(up, 1, :LM)
+    # λdowns, =  eigsolve(down, 1, :LM)
+    # @show λups[1]/λdowns[1]
 
     _, FL = leftenv(ALu, ALd, Mu, FL)
     _, FR = rightenv(ARu, ARd, Mu, FR)
