@@ -41,6 +41,10 @@ function lqpos!(A)
     return L, Q
 end
 
+function mysvd(A)
+    svd(A)
+end
+
 """
     leftorth(A, [C]; kwargs...)
 
@@ -303,17 +307,29 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
 function ACCtoALAR(AC, C)
     D, d, = size(AC)
 
-    QAC, RAC = qrpos(reshape(AC,(D*d, D)))
-    QC, RC = qrpos(C)
-    AL = reshape(QAC*QC', (D, d, D))
-    errL = norm(RAC-RC)
-    # @show errL
+    # QAC, RAC = qrpos(reshape(AC,(D*d, D)))
+    # QC, RC = qrpos(C)
+    # AL = reshape(QAC*QC', (D, d, D))
+    # errL = norm(RAC-RC)
+    # # @show errL
 
-    LAC, QAC = lqpos(reshape(AC,(D, d*D)))
-    LC, QC = lqpos(C)
-    AR = reshape(QC'*QAC, (D, d, D))
-    errR = norm(LAC-LC)
-    # @show errR
+    # LAC, QAC = lqpos(reshape(AC,(D, d*D)))
+    # LC, QC = lqpos(C)
+    # AR = reshape(QC'*QAC, (D, d, D))
+    # errR = norm(LAC-LC)
+    # # @show errR
+
+    κ = min(2,D)
+    uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')
+    AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
+    errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # @show "svd2",errL,κ,sACC
+
+    uCAC, sCAC, vCAC = mysvd(C'*reshape(AC,(D, d*D)))
+    AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
+    errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # @show "svd2",errR,sCAC
+
     return AL, AR, errL, errR
 end
 

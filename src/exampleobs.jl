@@ -8,17 +8,17 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(model::MT, β, D; tol=1e-10, maxiter=20, verbose = false, atype = Array) where {MT <: HamiltonianModel}
+function vumps_env(model::MT, β, D; tol=1e-10, maxiter=20, verbose = false, savefile = false, atype = Array) where {MT <: HamiltonianModel}
     M = atype(model_tensor(model, β))
-    mkpath("./data/")
-    chkp_file = "./data/$(model)_β$(β)_D$(D).jld2"
+    mkpath("./data/$(model)_$(atype)")
+    chkp_file = "./data/$(model)_β$(β)_$(atype)/chi$(D).jld2"
     if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, D; verbose = verbose)   
     else
         rt = SquareVUMPSRuntime(M, Val(:random), D; verbose = verbose)
     end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    # save(chkp_file, "env", env) # if forward steps is too small, backward go to this way will make mistake!!!
+    savefile && save(chkp_file, "env", env) # if forward steps is too small, backward go to this way will make mistake!!!
     return env
 end
 

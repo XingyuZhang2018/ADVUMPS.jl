@@ -66,7 +66,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
     # @show λl
     function back((dλ, dFL))
         ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dALu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, ALd, M, ξl) 
@@ -105,7 +105,7 @@ function ChainRulesCore.rrule(::typeof(rightenv), ARu::AbstractArray{T}, ARd::Ab
     # @show λr
     function back((dλ, dFR))
         ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errR = ein"abc,cba ->"(ξr, FR)[]
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dARu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, ARd, M, FR) 
@@ -145,7 +145,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     # @show λAC
     function back((dλ, dAC))
         ξ, info = linsolve(AC -> ein"((αaγ,αsβ),asbp),ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errAC = ein"abc,abc ->"(AC, ξ)[]
         # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
         dFL = -ein"((ηpβ,βaα),csap),γsα -> γcη"(AC, FR, M, ξ)
@@ -178,7 +178,7 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
     # @show λC
     function back((dλ, dC))
         ξ, info = linsolve(C -> ein"(αaγ,αβ),ηaβ -> γη"(FL, C, FR), dC, -λC, 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errC = ein"ab,ab ->"(C, ξ)[]
         # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
@@ -209,6 +209,26 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
         return NO_FIELDS, dA
     end
     return (L, Q), back
+end
+
+function ChainRulesCore.rrule(::typeof(mysvd), A::AbstractArray{T,2}) where {T}
+    U,S,V = mysvd(A)
+    function back((dU, dS, dV))
+        # S .+= 1e-12
+        m, n = size(A)
+        k = min(m,n)
+        Fp, Fm = zeros(k,k), zeros(k,k)
+        for j = 1:k, i = 1:k
+            if j != i
+                Fp[i,j] = (S[j] - S[i])/((S[j] - S[i])^2 .+ 1e-12) + 1/(S[j] + S[i])
+                Fm[i,j] = (S[j] - S[i])/((S[j] - S[i])^2 .+ 1e-12) - 1/(S[j] + S[i])
+            end
+        end
+        dA = 1/2 * U * (Fp .* (U' * dU - dU' * U) + Fm .* (V' * dV - dV' * V)) * V' + 
+                 (I - U * U') * dU * Diagonal(S.^-1) * V' + U * Diagonal(S.^-1) * dV' * (I - V * V')
+        return NO_FIELDS, dA
+    end
+    return (U,S,V), back
 end
 
 """
