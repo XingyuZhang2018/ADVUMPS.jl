@@ -112,7 +112,7 @@ provided.
 ````
 """
 function rightorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
-    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol,maxiter = maxiter, kwargs...)
+    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol,maxiter = 1, kwargs...)
     return permutedims(C,(2,1)), permutedims(AL,(3,2,1)), λ
 end
 
@@ -307,28 +307,28 @@ QR factorization to get `AL` and `AR` from `AC` and `C`
 function ACCtoALAR(AC, C)
     D, d, = size(AC)
 
-    # QAC, RAC = qrpos(reshape(AC,(D*d, D)))
-    # QC, RC = qrpos(C)
-    # AL = reshape(QAC*QC', (D, d, D))
-    # errL = norm(RAC-RC)
-    # # @show errL
+    QAC, RAC = qrpos(reshape(AC,(D*d, D)))
+    QC, RC = qrpos(C)
+    AL = reshape(QAC*QC', (D, d, D))
+    errL = norm(RAC-RC)
+    # @show errL
 
-    # LAC, QAC = lqpos(reshape(AC,(D, d*D)))
-    # LC, QC = lqpos(C)
-    # AR = reshape(QC'*QAC, (D, d, D))
-    # errR = norm(LAC-LC)
-    # # @show errR
+    LAC, QAC = lqpos(reshape(AC,(D, d*D)))
+    LC, QC = lqpos(C)
+    AR = reshape(QC'*QAC, (D, d, D))
+    errR = norm(LAC-LC)
+    # @show errR
 
-    κ = min(2,D)
-    uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')
-    AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
-    errL = norm(AC-ein"abc,cd -> abd"(AL,C))
-    # @show "svd2",errL,κ,sACC
+    # κ = min(3,D)
+    # uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')
+    # AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
+    # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
+    # # @show "svd2",errL,κ,sACC
 
-    uCAC, sCAC, vCAC = mysvd(C'*reshape(AC,(D, d*D)))
-    AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
-    errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
-    # @show "svd2",errR,sCAC
+    # uCAC, sCAC, vCAC = mysvd(C'*reshape(AC,(D, d*D)))
+    # AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
+    # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
+    # # @show "svd2",errR,sCAC
 
     return AL, AR, errL, errR
 end

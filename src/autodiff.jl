@@ -65,7 +65,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
     λl, FL = leftenv(ALu, ALd, M, FL)
     # @show λl
     function back((dλ, dFL))
-        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1)
+        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1; maxiter = 1)
         # @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
@@ -104,10 +104,10 @@ function ChainRulesCore.rrule(::typeof(rightenv), ARu::AbstractArray{T}, ARd::Ab
     λr, FR = rightenv(ARu, ARd, M, FR)
     # @show λr
     function back((dλ, dFR))
-        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1)
+        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1; maxiter = 1)
         # @assert info.converged==1
         # errR = ein"abc,cba ->"(ξr, FR)[]
-        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
+        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR) $(info)")
         dARu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, ARd, M, FR) 
         dARd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, ARu, M, FR)
         dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, ARu, ARd, FR)
@@ -144,7 +144,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     λAC, AC = ACenv(AC, FL, M, FR)
     # @show λAC
     function back((dλ, dAC))
-        ξ, info = linsolve(AC -> ein"((αaγ,αsβ),asbp),ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1)
+        ξ, info = linsolve(AC -> ein"((αaγ,αsβ),asbp),ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1; maxiter = 1)
         # @assert info.converged==1
         # errAC = ein"abc,abc ->"(AC, ξ)[]
         # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
@@ -177,7 +177,7 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
     λC, C = Cenv(C, FL, FR)
     # @show λC
     function back((dλ, dC))
-        ξ, info = linsolve(C -> ein"(αaγ,αβ),ηaβ -> γη"(FL, C, FR), dC, -λC, 1)
+        ξ, info = linsolve(C -> ein"(αaγ,αβ),ηaβ -> γη"(FL, C, FR), dC, -λC, 1; maxiter = 1)
         # @assert info.converged==1
         # errC = ein"ab,ab ->"(C, ξ)[]
         # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
@@ -257,7 +257,7 @@ function ChainRulesCore.rrule(::typeof(bigleftenv), ALu::AbstractArray{T}, ALd::
     λl, FL4 = bigleftenv(ALu, ALd, M, FL4; kwargs...)
     # @show λl
     function back((dλl, dFL4))
-        ξl, info = linsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ALu,M,M,ALd), dFL4, -λl, 1)
+        ξl, info = linsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ALu,M,M,ALd), dFL4, -λl, 1; maxiter = 1)
         # errL = ein"abc,cba ->"(FL4, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dALu = -ein"(((adgi,ijk),gjhf),dfeb), cehk -> abc"(FL4, ALd, M, M, ξl)
@@ -293,7 +293,7 @@ function ChainRulesCore.rrule(::typeof(bigrightenv), ARu::AbstractArray{T}, ARd:
     λr, FR4 = bigrightenv(ARu, ARd, M, FR4; kwargs...)
     # @show λr
     function back((dλ, dFR4))
-        ξr, info = linsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ARu,M,M,ARd), dFR4, -λr, 1)
+        ξr, info = linsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ARu,M,M,ARd), dFR4, -λr, 1; maxiter = 1)
         # errR = ein"abc,cba ->"(ξr, FR4)[]
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dARu = -ein"(((adgi,ijk),gjhf),dfeb), cehk -> abc"(ξr, ARd, M, M, FR4)
