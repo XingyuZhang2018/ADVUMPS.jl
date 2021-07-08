@@ -1,8 +1,8 @@
 #muti file best data gradient descent
 obss = ['ener','gradnorm']
-fdir = ["./data/ADCTMRG_Heisenberg(1.0,1.0,1.0)/","./data/ADVUMPS_Heisenberg(1.0,1.0,1.0)/"]
-fD = 3
-fchi = 20
+fdir = ["./data/GPU_Heisenberg{Float64}(1.0, 1.0, 1.0)/"]
+fD = 6
+fchi = 30
 # %matplotlib notebook
 # %matplotlib inline
 # from jupyterthemes import jtplot
@@ -71,7 +71,7 @@ for file_dir in fdir:
         obs = obss[i]
         axis=ax[i]
         datadescend = data.loc[data['D']==fD].loc[data['chi']==fchi]
-        axis.plot(list(range(datadescend.shape[0]))[0:130], datadescend[obs][0:130],\
+        axis.plot(list(range(datadescend.shape[0]))[0:355], datadescend[obs][0:355],\
                  '-', \
                  label=file_dir)
         axis.set_xlabel('iteration')

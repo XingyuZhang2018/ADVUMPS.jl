@@ -16,7 +16,7 @@ function energy(h, ipeps::IPEPS, oc, key; verbose = false)
     ap = ein"abcdx,ijkly -> aibjckdlxy"(ipeps.bulk, conj(ipeps.bulk))
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
-    folder = "./data/$(model)/"
+    folder = "./data/$(model)_$(atype)/"
     mkpath(folder)
     chkp_file = folder*"vumps_env_D$(D)_chi$(χ).jld2"
     if isfile(chkp_file)
