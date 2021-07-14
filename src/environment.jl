@@ -139,6 +139,7 @@ function leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1)
     #         return real(λs[2]), real(FLs[2])
     #     end
     # end
+    # @show info,λs
     return real(λs[1]), real(FLs[1])
 end
 

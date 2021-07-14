@@ -306,14 +306,14 @@ end
         env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
         magnetisation(env,Ising(),β)
     end
-    for β = 0.8
+    for β = 0.2
         @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-6
     end
 
     function foo2(β) 
         magnetisation(vumps_env(Ising(),β,χ; tol = 1e-20, maxiter = 10, verbose = true, savefile = false), Ising(), β)
     end
-    # for β = 0.4
+    # for β = 0.8
     #     @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-10
     # end
 end

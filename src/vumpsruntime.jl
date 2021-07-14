@@ -101,34 +101,22 @@ function vumpstep(rt::VUMPSRuntime,err)
     # global backratio = 1.0
     # Zygote.@ignore print(round(-log(10,backratio)),' ')
     M,AL,C,AR,FL,FR = rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
-    AC = Zygote.@ignore ein"asc,cb -> asb"(AL,C)
+    AC = ein"asc,cb -> asb"(AL,C)
+    # λAC, ACp = ACenv(AC, FL, M, FR)
+    # λC, Cp = Cenv(C, FL, FR)
     ACp = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
     Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
-    ACp /= sqrt(ein"abc,abc -> "(ACp,ACp)[])
-    Cp /=  sqrt(ein"ab,ab -> "(Cp,Cp)[])
-    # _, ACp = ACenv(AC, FL, M, FR)
-    # _, Cp = Cenv(C, FL, FR)
-    # @show ein"abc,abc -> "(ACp,ACp)[],ein"ab,ab -> "(Cp,Cp)[]
+    ACp /= sqrt(ein"abc,abc ->"(ACp,ACp)[])
+    Cp /= sqrt(ein"ab,ab ->"(Cp,Cp)[])
     ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
-    # ALp = copy(AL)
-    # ARp = copy(AR)
     _, FL = leftenv(AL, ALp, M, FL)
     _, FR = rightenv(AR, ARp, M, FR)
-    _, AC = ACenv(ACp, FL, M, FR)
-    _, C = Cenv(Cp, FL, FR)
-    AL, AR, _, _ = ACCtoALAR(AC, C)
-
-    ##### avoid gradient explosion for too many iterations #####
-    # M = backratio .* M + Zygote.@ignore (1-backratio) .* M
-    # AL = backratio .* AL + Zygote.@ignore (1-backratio) .* AL
-    # C = backratio .* C +  Zygote.@ignore (1-backratio) .* C
-    # AR = backratio .* AR + Zygote.@ignore (1-backratio) .* AR
-    # FL = backratio .* FL + Zygote.@ignore (1-backratio) .* FL
-    # FR = backratio .* FR + Zygote.@ignore (1-backratio) .* FR
-
-    err = error(AL,C,AR,FL,M,FR)
-    # @show err
-    return SquareVUMPSRuntime(M, AL, C, AR, FL, FR), err
+    # λAC, ACp = ACenv(ACp, FL, M, FR)
+    # λC, Cp = Cenv(Cp, FL, FR)
+    # # @show λAC,λC
+    # ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
+    err = Zygote.@ignore error(ALp,Cp,ARp,FL,M,FR)
+    return SquareVUMPSRuntime(M, ALp, Cp, ARp, FL, FR), err
 end
 
 """
@@ -173,9 +161,9 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     # @show norm(ALu - ALd),norm(ARu - ARd)
     # _, FL_n = norm_FL(ALu, ALd)
     # _, FR_n = norm_FR(ARu, ARd)
-    # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])") 
-    # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
+    # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])")
 
+    # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
     # 王 = ein"(abc,dfeb),gfh -> adgceh"(ARu,Mu,ARd)
     # 工 = ein"abc,dbe -> adce"(ARu,ARd)
     # up = reshape(王,χ^2*D,χ^2*D)

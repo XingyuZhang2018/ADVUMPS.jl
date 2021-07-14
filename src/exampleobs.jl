@@ -76,8 +76,9 @@ function Z(env)
     ACd = ein"asc,cb -> asb"(ALd,Cd)
     z = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
     λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,Cu,FR,Cd)
-    _, FL_n = norm_FL(ALu, ALd)
-    _, FR_n = norm_FR(ARu, ARd)
+    λFL_n, FL_n = norm_FL(ALu, ALd)
+    λFR_n, FR_n = norm_FR(ARu, ARd)
+    # @show λFL_n,λFR_n
     overlap = ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"((ac,ab),bd),cd ->"(FL_n,Cu,FR_n,Cd)[]
     return Array(z)[]/Array(λ)[]/overlap
 end
