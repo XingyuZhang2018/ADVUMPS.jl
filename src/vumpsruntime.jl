@@ -106,16 +106,18 @@ function vumpstep(rt::VUMPSRuntime,err)
     # λC, Cp = Cenv(C, FL, FR)
     ACp = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
     Cp = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
-    ACp /= sqrt(ein"abc,abc ->"(ACp,ACp)[])
-    Cp /= sqrt(ein"ab,ab ->"(Cp,Cp)[])
+    # ACp /= sqrt(ein"abc,abc ->"(ACp,ACp)[])
+    # Cp /= sqrt(ein"ab,ab ->"(Cp,Cp)[])
+    # _, ACp = ACenv(AC, FL, M, FR)
+    # _, Cp = Cenv(C, FL, FR)
     ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
     _, FL = leftenv(AL, ALp, M, FL)
     _, FR = rightenv(AR, ARp, M, FR)
-    # λAC, ACp = ACenv(ACp, FL, M, FR)
-    # λC, Cp = Cenv(Cp, FL, FR)
-    # # @show λAC,λC
-    # ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
+    λAC, ACp = ACenv(ACp, FL, M, FR)
+    λC, Cp = Cenv(Cp, FL, FR)
+    ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
     err = Zygote.@ignore error(ALp,Cp,ARp,FL,M,FR)
+    # @show norm(ACp - ein"asc,cb -> asb"(ALp,Cp))
     return SquareVUMPSRuntime(M, ALp, Cp, ARp, FL, FR), err
 end
 
@@ -158,12 +160,12 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
         envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
         save(chkp_file_down, "env", envsave)
     end  
-    # @show norm(ALu - ALd),norm(ARu - ARd)
-    # _, FL_n = norm_FL(ALu, ALd)
-    # _, FR_n = norm_FR(ARu, ARd)
-    # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])")
+    @show norm(ALu - ALd),norm(ARu - ARd)
+    _, FL_n = norm_FL(ALu, ALd)
+    _, FR_n = norm_FR(ARu, ARd)
+    println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])")
 
-    # println("up obs = $(magnetisation(envup,Ising(),0.6)) down obs = $(magnetisation(envdown,Ising(),0.6))")
+    println("up obs = $(magnetisation(envup,Ising(),0.8)) down obs = $(magnetisation(envdown,Ising(),0.8))")
     # 王 = ein"(abc,dfeb),gfh -> adgceh"(ARu,Mu,ARd)
     # 工 = ein"abc,dbe -> adce"(ARu,ARd)
     # up = reshape(王,χ^2*D,χ^2*D)
@@ -172,7 +174,8 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     # λdowns, =  eigsolve(down, 1, :LM)
     # @show λups[1]/λdowns[1]
 
-    _, FL = leftenv(ALu, ALd, Mu, FL)
-    _, FR = rightenv(ARu, ARd, Mu, FR)
+    λFL, FL = leftenv(ALu, ALd, Mu, FL)
+    λFR, FR = rightenv(ARu, ARd, Mu, FR)  
+    @show λFL,λFR    
     Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
 end

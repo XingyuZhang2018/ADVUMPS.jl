@@ -46,7 +46,7 @@ function magnetisation(env::SquareVUMPSRuntime, model::MT, β) where {MT <: Hami
     AC = ein"asc,cb -> asb"(AL,C)
     mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,Mag,FR,conj(AC))
     λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
-    return abs(Array(mag)[]/Array(λ)[])
+    return Array(mag)[]/Array(λ)[]
 end
 
 """
@@ -95,7 +95,7 @@ function magnetisation(env, model::MT, β) where {MT <: HamiltonianModel}
     ACd = ein"asc,cb -> asb"(ALd,Cd)
     mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Mag,FR,ACd)
     λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
-    return abs(Array(mag)[]/Array(λ)[])
+    return Array(mag)[]/Array(λ)[]
 end
 
 """
