@@ -100,61 +100,6 @@ end
     Zygote.gradient(foo, 1)[1]
 end
 
-@testset "einsum optimize with $atype" for atype in [Array]
-    D = 16
-    χ = 30
-    FL = atype(rand(χ,D,χ))
-    AL = atype(rand(χ,D,χ))
-    M = atype(rand(D,D,D,D))
-    C = atype(rand(χ,χ))
-    ap = atype(rand(D,D,D,D,2,2))
-    AR = atype(rand(χ,D,χ))
-    FR = atype(rand(χ,D,χ))
-    FL4 = atype(rand(χ,D,D,χ))
-    # 王 = atype(rand(χ,D,χ,χ,D,χ))
-
-    function getoc(ein::EinCode{ixs, iy}, xs) where {ixs, iy}
-        @time begin
-            sd = get_size_dict(ixs, xs);
-            oc = optimize_greedy(ein, sd; method = MinSpaceDiff())
-        end
-        display(oc)
-        return oc
-    end
-
-    ein = ein"abc,cde,afi,bfgj,dghl,ijk,klm -> ehm"
-    xs = (AL,AL,FL,M,M,AL,AL)
-    # oc = getoc(ein, xs)
-    # @btime $oc($AL,$AL,$FL,$M,$M,$AL,$AL)
-    function foo(FL,AL,M)
-        FL = ein"((afi,abc),bfgj),ijk -> cgk"(FL,AL,M,AL)
-        ein"((afi,abc),bfgj),ijk -> cgk"(FL,AL,M,AL)
-    end
-    # @btime $foo($FL,$AL,$M)
-
-    ein = ein"asd,cpd,cpb -> asb"
-    xs = (AL,AL,AL)
-    # oc = getoc(ein, xs)
-    # @btime $oc($AL,$AL,$AL)
-    # @btime ein"(asd,cpd),cpb -> asb"($AL,$AL,$AL)
-
-    ein = ein"dcba,def,ckge,bjhk,aji -> fghi"
-    xs = (FL4,AL,M,M,AL)
-    # oc = getoc(ein, xs)
-
-    ein = ein"αcβ,βsη,cpds,ηdγ,αpγ -> "
-    xs = (FL,AL,M,FR,AL)
-    # oc = getoc(ein, xs)
-    
-    ein = ein"αcβ,βη,ηcγ,αγ -> "
-    xs = (AL,C,AL,C)
-    # oc = getoc(ein, xs)
-
-    ein = ein"γcη,ηpβ,γsα,βaα -> csap"
-    xs = (AL,AL,AL,AL)
-    # oc = getoc(ein, xs)
-end
-
 @testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
