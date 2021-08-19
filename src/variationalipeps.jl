@@ -38,7 +38,7 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc)
-    M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = env
+    M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = env
     oc1, oc2 = oc
     ap /= norm(ap)
     etol = 0
@@ -49,8 +49,10 @@ function expectationvalue(h, ap, env, oc)
     println("── = $(Array(e)[]/Array(n)[])") 
     etol += Array(e)[]/Array(n)[]
 
-    _, BgFL = bigleftenv(ALu, ALd, M)
-    _, BgFR = bigrightenv(ARu, ARd, M)
+    # _, BgFL = bigleftenv(ALu, ALd, M)
+    # _, BgFR = bigrightenv(ARu, ARd, M)
+    BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
+    BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
     lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
     e2 = ein"pqrs, pqrs -> "(lr2,h)
     n2 = ein"pprr -> "(lr2)

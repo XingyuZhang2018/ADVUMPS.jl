@@ -160,12 +160,12 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
         envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
         save(chkp_file_down, "env", envsave)
     end  
-    @show norm(ALu - ALd),norm(ARu - ARd)
-    _, FL_n = norm_FL(ALu, ALd)
-    _, FR_n = norm_FR(ARu, ARd)
-    println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])")
+    # @show norm(ALu - ALd),norm(ARu - ARd)
+    # _, FL_n = norm_FL(ALu, ALd)
+    # _, FR_n = norm_FR(ARu, ARd)
+    # println("overlap = $(ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"ac,ab,bd,cd ->"(FL_n,Cu,FR_n,Cd)[])")
 
-    println("up obs = $(magnetisation(envup,Ising(),0.8)) down obs = $(magnetisation(envdown,Ising(),0.8))")
+    # println("up obs = $(magnetisation(envup,Ising(),0.8)) down obs = $(magnetisation(envdown,Ising(),0.8))")
     # 王 = ein"(abc,dfeb),gfh -> adgceh"(ARu,Mu,ARd)
     # 工 = ein"abc,dbe -> adce"(ARu,ARd)
     # up = reshape(王,χ^2*D,χ^2*D)
@@ -174,8 +174,8 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, t
     # λdowns, =  eigsolve(down, 1, :LM)
     # @show λups[1]/λdowns[1]
 
-    λFL, FL = leftenv(ALu, ALd, Mu, FL)
-    λFR, FR = rightenv(ARu, ARd, Mu, FR)  
-    @show λFL,λFR    
-    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR
+    _, FLo = leftenv(ALu, ALd, Mu, FL)
+    _, FRo = rightenv(ARu, ARd, Mu, FR)  
+    # @show λFL,λFR    
+    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR
 end

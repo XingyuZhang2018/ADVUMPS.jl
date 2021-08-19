@@ -3,7 +3,7 @@ using OMEinsum
 using OMEinsum: get_size_dict, optimize_greedy,  MinSpaceDiff
 using Test
 
-@testset "einsum optimize with $atype" for atype in [CuArray]
+@testset "einsum optimize with $atype" for atype in [Array]
     D = 4
     χ = 20
     
@@ -58,15 +58,30 @@ using Test
     # xs = (AL,AL,AL,AL)
     # oc = getoc(ein, xs)
 
-    ein = ein"adf,abc,dgeb,ceh -> fgh"
-    xs = (F, F, M, F)
-    oc1 = getoc(ein, xs)
-    @btime $oc1($F, $F, $M, $F)
+    # ein = ein"adf,abc,dgeb,ceh -> fgh"
+    # xs = (F, F, M, F)
+    # oc1 = getoc(ein, xs)
+    # @btime $oc1($F, $F, $M, $F)
 
-    ein = ein"abcd,aegi,ejfbm, gkhcm, dfhl -> ijkl"
-    xs = (f, f, m, m, f)
-    oc2 = getoc(ein, xs)
-    @btime $oc2($f, $f, $m, $m, $f)
+    # ein = ein"abcd,aegi,ejfbm, gkhcm, dfhl -> ijkl"
+    # xs = (f, f, m, m, f)
+    # oc2 = getoc(ein, xs)
+    # @btime $oc2($f, $f, $m, $m, $f)
 
-    @test oc1(F, F, M, F) ≈ reshape(oc2(f, f, m, m, f), (χ, D^2, χ))
+    # @test oc1(F, F, M, F) ≈ reshape(oc2(f, f, m, m, f), (χ, D^2, χ))
+    D = 6
+    χ = 20
+    F = rand(χ,D,χ)
+    M = rand(D,D,D,D)
+    ein = ein"abc,cde,afi,fjgb,gkhd,ehl,imp,mqnj,nsok,lot,pqr,rst -> "
+    xs = (F, F, F, M, M, F, F, M, M, F, F, F)
+    oc = getoc(ein, xs)
+    @btime $oc($F, $F, $F, $M, $M, $F, $F, $M, $M, $F, $F, $F)
+
+    F = rand(χ,D^2,χ)
+    M = rand(D^2,D^2,D^2,D^2)
+    ein = ein"abc,adf,dgeb,ceh,fgh -> "
+    xs = (F, F, M, F, F)
+    oc = getoc(ein, xs)
+    @btime $oc($F, $F, $M, $F, $F)
 end
