@@ -14,12 +14,12 @@ function energy_χ(ipeps::IPEPS{LT}, key, χ) where LT
 end
 
 model = Heisenberg(1.0,1.0,1.0)
-ipeps, key = init_ipeps(model;atype = CuArray, D=6, χ=30, tol=1e-10, maxiter=10)
-x = 80
+ipeps, key = init_ipeps(model;atype = Array, D=2, χ=20, tol=1e-10, maxiter=10)
+x = 20
 yenergy = []
 for χ in x
     yenergy = [yenergy; energy_χ(ipeps, key, χ)]
 end
-energyplot = plot()
-plot!(energyplot, x, yenergy, title = "energy", label = "energy", lw = 3)
+# energyplot = plot()
+# plot!(energyplot, x, yenergy, title = "energy", label = "energy", lw = 3)
 @show yenergy

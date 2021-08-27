@@ -54,13 +54,13 @@ function expectationvalue(h, ap, env::SquareVUMPSRuntime, oc)
     e = Array(ein"pqrs, pqrs -> "(lr,h))[]
     n = Array(ein"pprr -> "(lr))[]
 
-    # AC = ein"asc,cb -> asb"(AL,C)
-    # _, FL4 = bigleftenv(AL, M)
-    # _, FR4 = bigrightenv(AR, M)
-    # e2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs,pqrs -> "(FL4,AC,conj(AC),FR4,ap,ap,h)[]
-    # n2 = ein"dcba,def,aji,fghi,ckgepq,bjhkrs -> pqrs"(FL4,AC,conj(AC),FR4,ap,ap)
-    # n2 = ein"pprr -> "(n2)[]
-    # @show e/n e2/n2 (e/n+e2/n2)/2
+    Zygote.@ignore begin
+        Mx = ein"pqrr, pq -> "(lr,σx/2)[]/n
+        My = ein"pqrr, pq -> "(lr,σy/2)[]/n
+        Mz = ein"pqrr, pq -> "(lr,σz/2)[]/n
+        @show Mx,My,Mz
+        println("M = $((Mx^2+My^2+Mz^2)^0.5)")
+    end
 
     return e/n
 end

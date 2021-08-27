@@ -11,6 +11,6 @@ CUDA.allowscalar(false)
 atype = CuArray
 Random.seed!(100)
 model = Heisenberg(1.0,1.0,1.0)
-ipeps, key = init_ipeps(model;atype = atype, D=6, χ=30, tol=1e-10, maxiter=10)
-res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 100, verbose = true)
+ipeps, key = init_ipeps(model;atype = atype, D=2, χ=20, tol=1e-10, maxiter=10)
+res = optimiseipeps(ipeps, key; f_tol = 1e-6, opiter = 0, verbose = true)
 e = minimum(res)
