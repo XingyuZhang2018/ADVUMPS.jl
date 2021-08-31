@@ -9,7 +9,7 @@ using Test
 @testset "up and dowm vumps with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(1001)
     model = Ising()
-    for β = 0.8
+    for β = 0.2
         @show β
         M = atype(model_tensor(model, β))
         env = obs_env(model, M; atype = atype, D = 2, χ = 10, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
