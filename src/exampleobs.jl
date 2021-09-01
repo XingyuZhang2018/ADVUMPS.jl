@@ -2,25 +2,15 @@ using JLD2
 using FileIO
 
 """
-    vumps_env(model<:HamiltonianModel, β, D)
-
-return the vumps environment of the `model` as a function of the inverse
-temperature `β` and the environment bonddimension `D` as calculated with
-vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
+tensor order graph: from left to right, top to bottom.
+```
+a ────┬──── c    a─────b
+│     b     │    │     │                     
+├─ d ─┼─ e ─┤    ├──c──┤                  
+│     g     │    │     │  
+f ────┴──── h    d─────e    
+```
 """
-function vumps_env(model::MT, β, D; tol=1e-10, maxiter=20, verbose = false, savefile = false, atype = Array) where {MT <: HamiltonianModel}
-    M = atype(model_tensor(model, β))
-    mkpath("./data/$(model)_$(atype)")
-    chkp_file = "./data/$(model)_β$(β)_$(atype)/chi$(D).jld2"
-    if isfile(chkp_file)                               
-        rt = SquareVUMPSRuntime(M, chkp_file, D; verbose = verbose)   
-    else
-        rt = SquareVUMPSRuntime(M, Val(:random), D; verbose = verbose)
-    end
-    env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    savefile && save(chkp_file, "env", env) # if forward steps is too small, backward go to this way will make mistake!!!
-    return env
-end
 
 """
     Z(env::SquareVUMPSRuntime)
@@ -29,10 +19,10 @@ return the partition function of the `env`.
 """
 function Z(env::SquareVUMPSRuntime)
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
-    AC = ein"asc,cb -> asb"(AL,C)
-    z = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
-    λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,C,FR,conj(C))
-    return Array(z)[]/Array(λ)[]
+    AC = ein"abc,cd -> abd"(AL,C)
+    z = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,AC,M,FR,conj(AC))
+    λ = ein"(acd,ab),(bce,de) -> "(FL,C,FR,conj(C))
+    return real(Array(z)[]/Array(λ)[])
 end
 
 """
@@ -43,10 +33,10 @@ return the magnetisation of the `model`. Requires that `mag_tensor` are defined 
 function magnetisation(env::SquareVUMPSRuntime, model::MT, β) where {MT <: HamiltonianModel}
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Mag = _arraytype(M)(mag_tensor(model, β))
-    AC = ein"asc,cb -> asb"(AL,C)
-    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,Mag,FR,conj(AC))
-    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
-    return Array(mag)[]/Array(λ)[]
+    AC = ein"abc,cd -> abd"(AL,C)
+    mag = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,AC,Mag,FR,conj(AC))
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,AC,M,FR,conj(AC))
+    return abs(real(Array(mag)[]/Array(λ)[]))
 end
 
 """
@@ -59,10 +49,10 @@ vumps. Requires that `model_tensor` are defined for `model`.
 function energy(env::SquareVUMPSRuntime, model::MT, β) where {MT <: HamiltonianModel}
     M,AL,C,FL,FR = env.M,env.AL,env.C,env.FL,env.FR
     Ene = _arraytype(M)(energy_tensor(model, β))
-    AC = ein"asc,cb -> asb"(AL,C)
-    energy = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,Ene,FR,conj(AC))
-    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,AC,M,FR,conj(AC))
-    return Array(energy)[]/Array(λ)[]*2 # factor 2 for counting horizontal and vertical links
+    AC = ein"abc,cd -> abd"(AL,C)
+    energy = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,AC,Ene,FR,conj(AC))
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,AC,M,FR,conj(AC))
+    return real(Array(energy)[]/Array(λ)[]*2) # factor 2 for counting horizontal and vertical links
 end
 
 """
@@ -72,15 +62,15 @@ return the up and down partition function of the `env`.
 """
 function Z(env)
     M, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR, = env
-    ACu = ein"asc,cb -> asb"(ALu,Cu)
-    ACd = ein"asc,cb -> asb"(ALd,Cd)
-    z = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
-    λ = ein"(acβ,βη),(ηcγ,aγ) -> "(FL,Cu,FR,Cd)
+    ACu = ein"abc,cd -> abd"(ALu,Cu)
+    ACd = ein"abc,cd -> abd"(ALd,Cd)
+    z = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,conj(ACd))
+    λ = ein"(acd,ab),(bce,de) -> "(FL,Cu,FR,conj(Cd))
     λFL_n, FL_n = norm_FL(ALu, ALd)
     λFR_n, FR_n = norm_FR(ARu, ARd)
     # @show λFL_n,λFR_n
-    overlap = ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,ALd,Cd,FR_n)[]/ein"((ac,ab),bd),cd ->"(FL_n,Cu,FR_n,Cd)[]
-    return Array(z)[]/Array(λ)[]/overlap
+    overlap = ein"((ae,adb),bc),((edf,fg),cg) ->"(FL_n,ALu,Cu,conj(ALd),conj(Cd),FR_n)[]/ein"((ac,ab),bd),cd ->"(FL_n,Cu,FR_n,conj(Cd))[]
+    return real(Array(z)[]/Array(λ)[]/overlap)
 end
 
 """
@@ -91,11 +81,11 @@ return the up and down magnetisation of the `model`. Requires that `mag_tensor` 
 function magnetisation(env, model::MT, β) where {MT <: HamiltonianModel}
     M, ALu, Cu, _, ALd, Cd, _, FL, FR,  = env
     Mag = _arraytype(M)(mag_tensor(model, β))
-    ACu = ein"asc,cb -> asb"(ALu,Cu)
-    ACd = ein"asc,cb -> asb"(ALd,Cd)
-    mag = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Mag,FR,ACd)
-    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
-    return Array(mag)[]/Array(λ)[]
+    ACu = ein"abc,cd -> abd"(ALu,Cu)
+    ACd = ein"abc,cd -> abd"(ALd,Cd)
+    mag = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Mag,FR,conj(ACd))
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,conj(ACd))
+    return abs(real(Array(mag)[]/Array(λ)[]))
 end
 
 """
@@ -108,11 +98,11 @@ vumps. Requires that `model_tensor` are defined for `model`.
 function energy(env, model::MT, β) where {MT <: HamiltonianModel}
     M, ALu, Cu, _, ALd, Cd, _, FL, FR,  = env
     Ene = _arraytype(M)(energy_tensor(model, β))
-    ACu = ein"asc,cb -> asb"(ALu,Cu)
-    ACd = ein"asc,cb -> asb"(ALd,Cd)
-    energy = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,Ene,FR,ACd)
-    λ = ein"(((acβ,βsη),cpds),ηdγ),apγ -> "(FL,ACu,M,FR,ACd)
-    return Array(energy)[]/Array(λ)[]*2 # factor 2 for counting horizontal and vertical links
+    ACu = ein"abc,cd -> abd"(ALu,Cu)
+    ACd = ein"abc,cd -> abd"(ALd,Cd)
+    energy = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Ene,FR,conj(ACd))
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,conj(ACd))
+    return real(Array(energy)[]/Array(λ)[]*2) # factor 2 for counting horizontal and vertical links
 end
 
 """

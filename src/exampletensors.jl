@@ -27,7 +27,7 @@ return the isingtensor at inverse temperature `β` for a two-dimensional
 square lattice tensor-network.
 """
 function model_tensor(::Ising, β::Real)
-    a = reshape(Float64[1 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 1], 2,2,2,2)
+    a = reshape(ComplexF64[1 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 1], 2,2,2,2)
     cβ, sβ = sqrt(cosh(β)), sqrt(sinh(β))
     q = 1/sqrt(2) * [cβ+sβ cβ-sβ; cβ-sβ cβ+sβ]
     ein"abcd,ai,bj,ck,dl -> ijkl"(a,q,q,q,q)

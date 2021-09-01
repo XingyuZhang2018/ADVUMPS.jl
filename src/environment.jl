@@ -360,8 +360,8 @@ MAC2 =  FL─ M ──FR  =  λAC  │     │
 ````
 """
 function error(AL,C,AR,FL,M,FR)
-    AC = ein"asc,cb -> asb"(AL,C)
-    MAC = ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR)
+    AC = ein"abc,cd -> abd"(AL,C)
+    MAC = ein"((adf,abc),dgeb),ceh -> fgh"(FL,AC,M,FR)
     # MC = ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR)
     # MAL, MAR, _, _ = ACCtoALAR(MAC, MC)
     # _, FL_n = norm_FL(MAL, AL)
