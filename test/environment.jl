@@ -9,8 +9,9 @@ using Test
 using OMEinsum
 using OMEinsum: optimize_greedy
 using Zygote
+CUDA.allowscalar(false)
 
-@testset "qr with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "qr with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     A = atype(rand(dtype, 4,4))
     Q, R = qrpos(A)
@@ -19,7 +20,7 @@ using Zygote
     @test all(imag.(diag(R)) .≈ 0)
 end
 
-@testset "lq with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "lq with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     A = atype(rand(dtype, 4,4))
     L, Q = lqpos(A)
@@ -28,130 +29,123 @@ end
     @test all(imag.(diag(L)) .≈ 0)
 end
 
-@testset "eigsolve with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "eigsolve with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
-    D,d = 10,2
-    A = atype(rand(D,d,D))
-    工 = ein"asc,bsd -> abcd"(A,conj(A))
-    λLs, Ls, info = eigsolve(L -> ein"ab,abcd -> cd"(L,工), atype(rand(D,D)), 1, :LM)
-    λL, L = λLs[1], Ls[1]
-    @test imag(λL) ≈ 0
-    @test Array(ein"ab,ab -> "(L,L))[] ≈ 1 
-    @test λL * L ≈ ein"ab,abcd -> cd"(L,工)
+    D,d = 3,2                                        # a───┬───c 
+    ┬ = atype(rand(dtype, D,d,D))                    # │   b   │ 
+    工 = ein"abc,dbe -> acde"(┬,conj(┬))             # d───┴───e 
+    λcs, cs, info = eigsolve(c -> ein"ad,acde -> ce"(c,工), atype(rand(dtype, D,D)), 1, :LM)
+    λc, c = λcs[1], cs[1]
+    @test imag(λc) ≈ 0 atol = 1e-12
+    @test Array(ein"ab,ab -> "(c,conj(c)))[] ≈ 1 
+    @test λc * c ≈ ein"ad,acde -> ce"(c,工)
 
-    λRs, Rs, info = eigsolve(R -> ein"abcd,cd -> ab"(工,R), atype(rand(D,D)), 1, :LM)
-    λR, R = λRs[1], Rs[1]
-    @test imag(λR) ≈ 0
-    @test Array(ein"ab,ab -> "(R,R))[] ≈ 1 
-    @test λR * R ≈ ein"abcd,cd -> ab"(工,R)
-    @test λL ≈ λR
+    λↄs, ↄs, info = eigsolve(ↄ -> ein"acde,ce -> ad"(工,ↄ), atype(rand(dtype, D,D)), 1, :LM)
+    λↄ, ↄ = λↄs[1], ↄs[1]
+    @test imag(λↄ) ≈ 0 atol = 1e-12
+    @test Array(ein"ab,ab -> "(ↄ,conj(ↄ)))[] ≈ 1 
+    @test λↄ * ↄ ≈ ein"acde,ce -> ad"(工,ↄ)
+    @test λc ≈ λↄ
 end
 
-@testset "leftorth with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "leftorth and rightorth with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
-    D = 10
-    A = atype(rand(dtype,D,d,D))
-    AL, C, λ = leftorth(A)
+    D = 3
+    A = atype(rand(dtype,D,d,D))            # a───┬───c 
+    AL, L, λL = leftorth(A)                 # │   b   │ 
+    R, AR, λR = rightorth(A)                # d───┴───e 
 
-    M = ein"cda,cdb -> ab"(AL,conj(AL))
-    @test (Array(M) ≈ I(D))
+    @test Array(ein"abc,abe -> ce"(AL,conj(AL))) ≈ Array(I(D))
+    @test Array(ein"abc,dbc -> ad"(AR,conj(AR))) ≈ Array(I(D))
 
-    CA = reshape(C * reshape(A, D, d*D), d*D, D)
-    ALC = reshape(AL, d*D, D) * C * λ
-    @test (Array(ALC) ≈ Array(CA))
+    LA = reshape(L * reshape(A, D, d*D), d*D, D)
+    ALL = reshape(AL, d*D, D) * L * λL
+    @test ALL ≈ LA
+
+    A_R = reshape(reshape(A, d*D, D)*R, D, d*D)
+    RAR = R * reshape(AR, D, d*D) * λR
+    @test RAR ≈ A_R
 end
 
-@testset "rightorth with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
-    D = 10
-    A = atype(rand(dtype,D,d,D))
-    C, AR, λ = rightorth(A)
+    D = 3
 
-    M = ein"acd,bcd -> ab"(AR,conj(AR))
-    @test (Array(M) ≈ I(D))
-
-    AC = reshape(reshape(A, d*D, D)*C, D, d*D)
-    CAR = C * reshape(AR, D, d*D) * λ
-    @test (Array(CAR) ≈ Array(AC))
+    A = atype(rand(dtype,D,d,D))                     #  a ────┬──── c
+    M = atype(rand(dtype,d,d,d,d))                   #  │     b     │
+                                                     #  ├─ d ─┼─ e ─┤
+    ALu, = leftorth(A)                               #  │     g     │
+    ALd, = leftorth(A)                               #  f ────┴──── h
+    λL,FL = leftenv(ALu, ALd, M)
+    @test λL * FL ≈ ein"((adf,abc),dgeb),fgh -> ceh"(FL,ALu,M,conj(ALd))
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
+    λR,FR = rightenv(ARu, ARd, M)
+    @test λR * FR ≈ ein"((ceh,abc),dgeb),fgh -> adf"(FR,ARu,M,conj(ARd))
 end
 
-@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
+@testset "normalization leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
-    D = 10
-
-    β = rand(dtype)
-    A = atype(rand(dtype,D,d,D))
-    M = atype(model_tensor(Ising(),β))
-    
-    ALo, = leftorth(A)
-    ALn, = leftorth(A)
-    λL,FL = leftenv(ALo, ALn, M)
-    @test λL * FL ≈ ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALo,M,ALn)
-    _, ARo = rightorth(A)
-    _, ARn = rightorth(A)
-    λR,FR = rightenv(ARo, ARn, M)
-    @test λR * FR ≈ ein"αpγ,γcη,ascp,βsη -> αaβ"(ARo,FR,M,ARn)
-end
-
-@testset "normalization leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
-    Random.seed!(100)
-    d = 2
-    D = 10
-
-    A = atype(rand(dtype,D,d,D))
-    
-    AL, = leftorth(A)
-    λL,FL = norm_FL(AL, AL)
-    @test λL * FL ≈ ein"(ad,acb), dce -> be"(FL,AL,AL)
-    _, AR = rightorth(A)
-    λR,FR = norm_FR(AR, AR)
-    @test λR * FR ≈ ein"(be,acb), dce -> ad"(FR,AR,AR)
-end
-
-
-@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64]
-    Random.seed!(100)
-    d = 2
-    D = 10
-
-    β = rand(dtype)
-    A = atype(rand(dtype,D,d,D))
-    M = atype(model_tensor(Ising(),β))
-
-    AL,C = leftorth(A)
-    λL,FL = leftenv(AL, M)
-
-    _, AR = rightorth(A)
-    λR,FR = rightenv(AR, M)
-
-    AC = ein"asc,cb -> asb"(AL,C)
-    λAC, AC = ACenv(AC, FL, M, FR)
-    @test λAC * AC ≈ ein"αaγ,γpη,asbp,ηbβ -> αsβ"(FL,AC,M,FR)
-
-    λC, C = Cenv(C, FL, FR)
-    @test λC * C ≈ ein"αaγ,γη,ηaβ -> αβ"(FL,C,FR)
-end
-
-@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
-    Random.seed!(100)
-    d = 2
-    D = 10
-
-    β = rand(dtype)
-    A = atype(rand(dtype,D,d,D))
-    M = atype(model_tensor(Ising(),β))
-
+    D = 3
+                                       # a───┬───c 
+    A = atype(rand(dtype,D,d,D))       # │   b   │       
+                                       # d───┴───e 
     ALu, = leftorth(A)
     ALd, = leftorth(A)
+    λL,FL = norm_FL(ALu, ALd)
+    @test λL * FL ≈ ein"(ad,abc), dbe -> ce"(FL,ALu,conj(ALd))
+
+    _, ARu = rightorth(A)
+    _, ARd = rightorth(A)
+    λR,FR = norm_FR(ARu, ARd)
+    @test λR * FR ≈ ein"(ce,abc), dbe -> ad"(FR,ARu,conj(ARd))
+end
+
+@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
+    Random.seed!(100)
+    d = 2
+    D = 3                                      #    a ────┬──── c
+                                               #    │     b     │                                      
+    A = atype(rand(dtype,D,d,D))               #    ├─ d ─┼─ e ─┤
+    M = atype(rand(dtype,d,d,d,d))             #    │     f     │
+                                               #    ├─ g ─┼─ h ─┤
+    ALu, = leftorth(A)                         #    │     j     │
+    ALd, = leftorth(A)                         #    i ────┴──── k 
     λL,FL4 = bigleftenv(ALu, ALd, M)
-    @test λL * FL4 ≈ ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ALu,M,M,ALd)
+    @test λL * FL4 ≈ ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,conj(ALd))
 
     _, ARu = rightorth(A)
     _, ARd = rightorth(A)
     λR,FR4 = bigrightenv(ARu, ARd, M)
-    @test λR * FR4 ≈ ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ARu,M,M,ARd)
+    @test λR * FR4 ≈ ein"(((cehk,abc),dfeb),gjhf),ijk -> adgi"(FR4,ARu,M,M,conj(ARd))
 end
+
+@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
+    Random.seed!(100)
+    d = 2
+    D = 3
+
+    A = atype(rand(dtype,D,d,D))                     #  a ────┬──── c
+    M = atype(rand(dtype,d,d,d,d))                   #  │     b     │
+                                                     #  ├─ d ─┼─ e ─┤
+    ALu,Cu = leftorth(A)                             #  │     g     │
+    ALd, = leftorth(A)                               #  f ────┴──── h
+    _, FL = leftenv(ALu, ALd, M)
+
+    _, ARu = rightorth(A)                            #  a ─── b
+    _, ARd = rightorth(A)                            #  │     │
+    _, FR = rightenv(ARu, ARd, M)                    #  ├─ c ─┤
+                                                     #  │     │
+    ACu = ein"abc,cd -> abd"(ALu,Cu)                 #  d ─── e
+    λACu, ACu = ACenv(ACu, FL, M, FR)
+    @test λACu * ACu ≈ ein"((adf,abc),dgeb),ceh -> fgh"(FL,ACu,M,FR)
+
+    λCu, Cu = Cenv(Cu, FL, FR)
+    @test λCu * Cu ≈ ein"(acd,ab),bce -> de"(FL,Cu,FR)
+end
+
+
 

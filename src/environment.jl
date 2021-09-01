@@ -1,6 +1,17 @@
 using LinearAlgebra
 using KrylovKit
 
+"""
+tensor order graph: from left to right, top to bottom.
+```
+a ────┬──── c    a──────┬──────c   
+│     b     │    │      │      │                     
+├─ d ─┼─ e ─┤    │      b      │                  
+│     g     │    │      │      │  
+f ────┴──── h    d──────┴──────e    
+```
+"""
+
 #https://github.com/JuliaGPU/CuArrays.jl/issues/283
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
 CUDA.@cufunc safesign(x::CublasFloat) = iszero(x) ? one(x) : x/abs(x)
@@ -52,15 +63,14 @@ Given an MPS tensor `A`, return a left-canonical MPS tensor `AL`, a gauge transf
 a scalar factor `λ` such that ``λ AL^s C = C A^s``, where an initial guess for `C` can be
 provided.
 ```
-    ┌─AL─      ┌──      
-    │ │     =  │                 
-    ┕─AL─      ┕──    
+    ┌─AL─      ┌──      a───┬───c  
+    │ │     =  │        │   b   │          
+    ┕─AL─      ┕──      d───┴───e                          
 ```
-
 """
 function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
     _, ρs, info = eigsolve(C'*C, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do ρ
-        ρE = ein"(cd,dsb),csa -> ab"(ρ, A, conj(A))
+        ρE = ein"(da,abc),dbe -> ec"(ρ, A, conj(A))
         return ρE
     end
     ρ = ρs[1] + ρs[1]'
@@ -79,8 +89,8 @@ function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 
     numiter = 1
     while norm(C-R) > tol && numiter < maxiter
         # C = R
-        _, Cs, info = eigsolve(R, 1, :LM; ishermitian = false, tol = tol, maxiter = 1, kwargs...) do X
-            Y = ein"(cd,dsb),csa -> ab"(X,A,conj(AL))
+        _, Cs, info = eigsolve(R, 1, :LM; ishermitian = false, tol = tol, maxiter = maxiter, kwargs...) do X
+            Y = ein"(da,abc),dbe -> ec"(X,A,conj(AL))
             return Y
         end
         _, C = qrpos!(Cs[1])
@@ -96,7 +106,7 @@ function leftorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 
         numiter += 1
     end
     C = R
-    return real(AL), real(C), λ
+    return AL, C, λ
 end
 
 """
@@ -112,25 +122,26 @@ provided.
 ````
 """
 function rightorth(A, C = _mattype(A){eltype(A)}(I, size(A,1), size(A,1)); tol = 1e-12, maxiter = 100, kwargs...)
-    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol,maxiter = 1, kwargs...)
+    AL, C, λ = leftorth(permutedims(A,(3,2,1)), permutedims(C,(2,1)); tol = tol, maxiter = maxiter, kwargs...)
     return permutedims(C,(2,1)), permutedims(AL,(3,2,1)), λ
 end
 
 """
-    λ, FL = leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1), size(M,1), size(ALo,1))); kwargs...)
+    λ, FL = leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
 
 Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
-of `ALo - M - ALn` contracted along the physical dimension.
+of `ALu - M - ALd` contracted along the physical dimension.
 ```
-┌── ALo─       ┌──         
-│    │         │             
-FL ─ M ─  = λL FL─         
-│    │         │             
-┕── ALn─       ┕──        
+┌── ALu─       ┌──       a ────┬──── c 
+│    │         │         │     b     │ 
+FL ─ M ─  = λL FL─       ├─ d ─┼─ e ─┤ 
+│    │         │         │     g     │ 
+┕── ALd─       ┕──       f ────┴──── h 
 ```
 """
-function leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1), size(M,1), size(ALo,1))); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"((γcη,ηpβ),csap),γsα -> αaβ"(FL,ALo,M,conj(ALn)), FL, 1, :LM; ishermitian = false, kwargs...)
+
+function leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"((adf,abc),dgeb),fgh -> ceh"(FL,ALu,M,conj(ALd)), FL, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -140,33 +151,27 @@ function leftenv(ALo, ALn, M, FL = _arraytype(ALo)(rand(eltype(ALo), size(ALo,1)
     #     end
     # end
     # @show info,λs
-    return real(λs[1]), real(FLs[1])
+    return λs[1], FLs[1]
 end
 
 """
-    λ, FR = rightenv(ARo, ARn, M, FR = _arraytype(ARo)(randn(eltype(ARo), size(ARo,1), size(M,3), size(ARo,1))); kwargs...)
+    λ, FR = rightenv(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
 
 Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
-of `ARo - M - ARn` contracted along the physical dimension.
+of `ARu - M - ARd` contracted along the physical dimension.
 ```
- ─ ARo──┐         ──┐   
+ ─ ARu──┐         ──┐   
     │   │           │   
  ─  M ──FR   = λR ──FR  
     │   │           │   
- ─ ARn──┘         ──┘  
+ ─ ARd──┘         ──┘  
 ```
 """
-function rightenv(ARo, ARn, M, FR = _arraytype(ARo)(randn(eltype(ARo), size(ARo,1), size(M,3), size(ARo,1))); kwargs...)
-    λs, FRs, info = eigsolve(FR -> ein"((αpγ,γcη),ascp),βsη -> αaβ"(ARo,FR,M,conj(ARn)), FR, 1, :LM; ishermitian = false, kwargs...)
-    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
-    #     @show λs
-    #     if real(λs[1]) > 0
-    #         return real(λs[1]), real(FRs[1])
-    #     else
-    #         return real(λs[2]), real(FRs[2])
-    #     end
-    # end
-    return real(λs[1]), real(FRs[1])
+function rightenv(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
+    ALu = permutedims(ARu,(3,2,1))
+    ALd = permutedims(ARd,(3,2,1))
+    ML = permutedims(M,(3,2,1,4))
+    return leftenv(ALu, ALd, ML, FR; kwargs...)
 end
 
 """
@@ -175,15 +180,14 @@ end
 Compute the left environment tensor for normalization, by finding the left fixed point
 of `ALu - ALd` contracted along the physical dimension.
 ```
-┌──ALu─      ┌──         
-FL  │  =  λL FL        
-┕──ALd─      ┕──  
+┌──ALu─      ┌──        a───┬───c   
+FL  │  =  λL FL         │   b   │ 
+┕──ALd─      ┕──        d───┴───e  
 ```
 """
 function norm_FL(ALu, ALd, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(ALd,1))); kwargs...)
-    λs, FLs, info = eigsolve(FL -> ein"(ad,acb), dce -> be"(FL,ALu,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
-    # println("norm_FL $(λs)") 
-    return real(λs[1]), real(FLs[1])
+    λs, FLs, info = eigsolve(FL -> ein"(ad,abc), dbe -> ce"(FL,ALu,conj(ALd)), FL, 1, :LM; ishermitian = false, kwargs...)
+    return λs[1], FLs[1]
 end
 
 """
@@ -198,9 +202,9 @@ of `ARu - ARd` contracted along the physical dimension.
 ```
 """
 function norm_FR(ARu, ARd, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(ARd,3))); kwargs...)
-    λs, FRs, info = eigsolve(FR -> ein"(be,acb), dce -> ad"(FR,ARu,ARd), FR, 1, :LM; ishermitian = false, kwargs...)
-    # println("norm_FR $(λs)") 
-    return real(λs[1]), real(FRs[1])
+    ALu = permutedims(ARu,(3,2,1))
+    ALd = permutedims(ARd,(3,2,1))
+    return norm_FL(ALu, ALd, FR; kwargs...)
 end
 
 """
@@ -209,19 +213,18 @@ end
 Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
 of `ALu - M - M - ALd` contracted along the physical dimension.
 ```
-┌── ALu─       ┌──         
-│    │         │             
-│ ── M ─       │──       
-FL4  │    = λL FL4  
-│ ── M ─       │──
-│    │         │
-┕── ALd─       ┕──        
+┌── ALu─       ┌──          a ────┬──── c
+│    │         │            │     b     │
+│ ── M ─       │──          ├─ d ─┼─ e ─┤
+FL4  │    = λL FL4          │     f     │
+│ ── M ─       │──          ├─ g ─┼─ h ─┤
+│    │         │            │     j     │
+┕── ALd─       ┕──          i ────┴──── k 
 ```
 """
 function bigleftenv(ALu, ALd, M, FL4 = _arraytype(ALu)(rand(eltype(ALu), size(ALu,3), size(M,1), size(M,1), size(ALd,3))); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((dcba,def),ckge),bjhk),aji -> fghi"(FL4,ALu,M,M,ALd), FL4, 1, :LM; ishermitian = false, kwargs...)
-    # @show λFL4s
-    return real(λFL4s[1]), real(FL4s[1])
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,conj(ALd)), FL4, 1, :LM; ishermitian = false, kwargs...)
+    return λFL4s[1], FL4s[1]
 end
 
 """
@@ -240,9 +243,10 @@ of `ARu - M - ARd` contracted along the physical dimension.
 ```
 """
 function bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(randn(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
-    λFR4s, FR4s, info = eigsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ARu,M,M,ARd), FR4, 1, :LM; ishermitian = false, kwargs...)
-    # @show λFR4s
-    return real(λFR4s[1]), real(FR4s[1])
+    ALu = permutedims(ARu,(3,2,1))
+    ALd = permutedims(ARd,(3,2,1))
+    ML = permutedims(M,(3,2,1,4))
+    return bigleftenv(ALu, ALd, ML, FR4; kwargs...)
 end
 
 
@@ -250,15 +254,15 @@ end
 Compute the up environment tensor for MPS `FL`,`FR` and MPO `M`, by finding the up fixed point
     of `FL - M - FR` contracted along the physical dimension.
 ````
-┌── AC──┐         
-│   │   │           ┌── AC──┐ 
-FL─ M ──FR  =  λAC  │   │   │ 
-│   │   │         
-        
+┌── AC──┐                          a ────┬──── c
+│   │   │           ┌── AC──┐      │     b     │
+FL─ M ──FR  =  λAC  │   │   │      ├─ d ─┼─ e ─┤
+│   │   │                          │     g     │
+                                   f ────┴──── h
 ````
 """
 function ACenv(AC, FL, M, FR;kwargs...)
-    λs, ACs, _ = eigsolve(AC -> ein"((αaγ,γpη),asbp),ηbβ -> αsβ"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
+    λs, ACs, _ = eigsolve(AC -> ein"((adf,abc),dgeb),ceh -> fgh"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -268,22 +272,22 @@ function ACenv(AC, FL, M, FR;kwargs...)
     #     end
     # end
     # println("ACenv $(λs)") 
-    return real(λs[1]), real(ACs[1])
+    return λs[1], ACs[1]
 end
 
 """
 Compute the up environment tensor for MPS `FL` and `FR`, by finding the up fixed point
     of `FL - FR` contracted along the physical dimension.
 ````
-┌──C──┐         
-│     │          ┌──C──┐ 
-FL─── FR  =  λC  │     │ 
-│     │         
-        
+┌──C──┐                      a ─── b
+│     │          ┌──C──┐     │     │
+FL─── FR  =  λC  │     │     ├─ c ─┤
+│     │                      │     │
+                             d ─── e
 ````
 """
 function Cenv(C, FL, FR;kwargs...)
-    λs, Cs, _ = eigsolve(C -> ein"(αaγ,γη),ηaβ -> αβ"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
+    λs, Cs, _ = eigsolve(C -> ein"(acd,ab),bce -> de"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
     # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
     #     @show λs
     #     if real(λs[1]) > 0
@@ -292,7 +296,7 @@ function Cenv(C, FL, FR;kwargs...)
     #         return real(λs[2]), real(Cs[2])
     #     end
     # end
-    return real(λs[1]), real(Cs[1])
+    return λs[1], Cs[1]
 end
 
 """
