@@ -18,7 +18,7 @@ using Test
     end
 end
 
-@testset "up and dowm vumps with $atype" for atype in [Array]
+@testset "up and dowm vumps with $atype" for atype in [Array, CuArray]
     Random.seed!(100)
     model = Ising()
     for β = 0.2:0.2:0.4

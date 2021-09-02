@@ -53,11 +53,11 @@ dALu  = -  FL ── M ──  ξl
            │     │     │   
            └──  ALd  ──┘   
 
-           ┌──  ALu  ──┐ 
-           │     │     │ 
-dALd  = -  FL ── M ──  ξl
-           │     │     │ 
-           └──       ──┘ 
+           ┌──  ALu  ──┐            a ────┬──── c 
+           │     │     │            │     b     │ 
+dALd  = -  FL ── M ──  ξl           ├─ d ─┼─ e ─┤ 
+           │     │     │            │     g     │ 
+           └──       ──┘            f ────┴──── h 
 ```
 """
 
@@ -65,55 +65,16 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
     λl, FL = leftenv(ALu, ALd, M, FL)
     # @show λl
     function back((dλ, dFL))
-        ξl, info = linsolve(FR -> ein"((ηpβ,βaα),csap),γsα -> ηcγ"(ALu, FR, M, ALd), permutedims(dFL, (3, 2, 1)), -λl, 1; maxiter = 1)
-        # @assert info.converged==1
+        ξl, info = linsolve(FR -> ein"((abc,ceh),dgeb),fgh -> adf"(ALu, FR, M, conj(ALd)), conj(dFL), -λl, 1; maxiter = 1)
+        @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
-        dALu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(FL, ALd, M, ξl) 
-        dALd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(FL, ALu, M, ξl)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, ALu, ALd, ξl)
-        return NO_FIELDS, dALu, dALd, dM, NO_FIELDS...
+        dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, conj(ALd), M, ξl) 
+        dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
+        dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, conj(ALd), ξl)
+        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
     end
     return (λl, FL), back
-end
-
-"""
-    ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-
-```
-           ┌──  ARu  ──┐ 
-           │     │     │ 
-dM    = - ξr  ──   ──  FR
-           │     │     │ 
-           └──  ARd  ──┘ 
-
-           ┌──       ──┐   
-           │     │     │   
-dARu  = -  ξr ── M ──  FR  
-           │     │     │   
-           └──  ARd  ──┘   
-
-           ┌──  ARu  ──┐ 
-           │     │     │ 
-dARu  = -  ξr ── M ──  FR
-           │     │     │ 
-           └──       ──┘
-```
-"""
-function ChainRulesCore.rrule(::typeof(rightenv), ARu::AbstractArray{T}, ARd::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
-    λr, FR = rightenv(ARu, ARd, M, FR)
-    # @show λr
-    function back((dλ, dFR))
-        ξr, info = linsolve(FL -> ein"((ηpβ,γcη),csap),γsα -> αaβ"(ARu, FL, M, ARd), permutedims(dFR, (3, 2, 1)), -λr, 1; maxiter = 1)
-        # @assert info.converged==1
-        # errR = ein"abc,cba ->"(ξr, FR)[]
-        # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR) $(info)")
-        dARu = -ein"((γcη,γsα),csap),βaα -> ηpβ"(ξr, ARd, M, FR) 
-        dARd = -ein"((γcη,ηpβ),csap),βaα -> γsα"(ξr, ARu, M, FR)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(ξr, ARu, ARd, FR)
-        return NO_FIELDS, dARu, dARd, dM, NO_FIELDS...
-    end
-    return (λr, FR), back
 end
 
 """
@@ -132,11 +93,11 @@ dFL  =      ── M ── FR
           │    │    │ 
           └──  ξ  ──┘ 
 
-          ┌──  AC ──┐ 
-          │    │    │ 
-dFR  =   FL ── M ── 
-          │    │    │ 
-          └──  ξ  ──┘       
+          ┌──  AC ──┐          a ────┬──── c 
+          │    │    │          │     b     │ 
+dFR  =   FL ── M ──            ├─ d ─┼─ e ─┤  
+          │    │    │          │     g     │ 
+          └──  ξ  ──┘          f ────┴──── h       
 ```
 """
 function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; 
@@ -144,14 +105,14 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     λAC, AC = ACenv(AC, FL, M, FR)
     # @show λAC
     function back((dλ, dAC))
-        ξ, info = linsolve(AC -> ein"((αaγ,αsβ),asbp),ηbβ -> γpη"(FL, AC, M, FR), dAC, -λAC, 1; maxiter = 1)
-        # @assert info.converged==1
+        ξ, info = linsolve(AC -> ein"((adf,fgh),dgeb),ceh -> abc"(FL, AC, M, FR), conj(dAC), -λAC, 1; maxiter = 1)
+        @assert info.converged==1
         # errAC = ein"abc,abc ->"(AC, ξ)[]
         # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
-        dFL = -ein"((ηpβ,βaα),csap),γsα -> γcη"(AC, FR, M, ξ)
-        dM = -ein"(γcη,ηpβ),(γsα,βaα) -> csap"(FL, AC, ξ, FR)
-        dFR = -ein"((ηpβ,γcη),csap),γsα -> βaα"(AC, FL, M, ξ)
-        return NO_FIELDS, NO_FIELDS, dFL, dM, dFR
+        dFL = -ein"((abc,ceh),dgeb),fgh -> adf"(AC, FR, M, ξ)
+        dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, AC, ξ, FR)
+        dFR = -ein"((abc,adf),dgeb),fgh -> ceh"(AC, FL, M, ξ)
+        return NO_FIELDS, NO_FIELDS, conj(dFL), conj(dM), conj(dFR)
     end
     return (λAC, AC), back
 end
@@ -166,25 +127,25 @@ dFL  =      ─────── FR
           │         │ 
           └──  ξ  ──┘ 
 
-          ┌──  C  ──┐ 
-          │         │ 
-dFR  =   FL ─────── 
-          │         │ 
-          └──  ξ  ──┘       
+          ┌──  C  ──┐            a ─── b
+          │         │            │     │
+dFR  =   FL ───────              ├─ c ─┤
+          │         │            │     │
+          └──  ξ  ──┘            d ─── e
 ```
 """
 function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractArray{T}, FR::AbstractArray{T}; kwargs...) where {T}
     λC, C = Cenv(C, FL, FR)
     # @show λC
     function back((dλ, dC))
-        ξ, info = linsolve(C -> ein"(αaγ,αβ),ηaβ -> γη"(FL, C, FR), dC, -λC, 1; maxiter = 1)
-        # @assert info.converged==1
+        ξ, info = linsolve(C -> ein"(acd,de),bce -> ab"(FL, C, FR), conj(dC), -λC, 1; maxiter = 1)
+        @assert info.converged==1
         # errC = ein"ab,ab ->"(C, ξ)[]
         # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
-        dFL = -ein"(ηβ,βaα),γα -> γaη"(C, FR, ξ)
-        dFR = -ein"(ηβ,γcη),γα -> βcα"(C, FL, ξ)
-        return NO_FIELDS, NO_FIELDS, dFL, dFR
+        dFL = -ein"(ab,bce),de -> acd"(C, FR, ξ)
+        dFR = -ein"(ab,acd),de -> bce"(C, FL, ξ)
+        return NO_FIELDS, NO_FIELDS, conj(dFL), conj(dFR)
     end
     return (λC, C), back
 end
@@ -195,7 +156,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -205,7 +166,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back
@@ -317,7 +278,15 @@ julia> TensorNetworkAD.num_grad(x -> x * x, 3) ≈ 6
 true
 ```
 "
-num_grad(f, K::Real; δ::Real=1e-5) = (f(K + δ / 2) - f(K - δ / 2)) / δ
+function num_grad(f, K; δ::Real=1e-5)
+    if eltype(K) == ComplexF64
+        (f(K + δ / 2) - f(K - δ / 2)) / δ + 
+            (f(K + δ / 2 * 1.0im) - f(K - δ / 2 * 1im)) / δ * 1.0im
+    else
+        (f(K + δ / 2) - f(K - δ / 2)) / δ
+    end
+end
+
 
 @doc raw"
     num_grad(f, K::AbstractArray; [δ = 1e-5])
