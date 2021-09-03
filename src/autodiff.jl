@@ -72,7 +72,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
         dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, conj(ALd), M, ξl) 
         dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
         dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, conj(ALd), ξl)
-        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
+        return NO_FIELDS, dALu, dALd, conj(dM), NO_FIELDS...
     end
     return (λl, FL), back
 end
@@ -156,7 +156,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Symmetric(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
         return NO_FIELDS, dA
     end
     return (Q, R), back
@@ -166,7 +166,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Symmetric(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
         return NO_FIELDS, dA
     end
     return (L, Q), back
@@ -281,7 +281,7 @@ true
 function num_grad(f, K; δ::Real=1e-5)
     if eltype(K) == ComplexF64
         (f(K + δ / 2) - f(K - δ / 2)) / δ + 
-            (f(K + δ / 2 * 1.0im) - f(K - δ / 2 * 1im)) / δ * 1.0im
+            (f(K + δ / 2 * 1.0im) - f(K - δ / 2 * 1.0im)) / δ * 1.0im
     else
         (f(K + δ / 2) - f(K - δ / 2)) / δ
     end
