@@ -135,20 +135,19 @@ end
 
     β = rand()
     A = atype(rand(dtype,D,d,D))
-    M = atype(model_tensor(Ising(),β))
+    M = atype(rand(ComplexF64,d,d,d,d))
     
     AL,C = leftorth(A)
     λL,FL = leftenv(AL, AL, M)
     _, AR = rightorth(A)
     λR,FR = rightenv(AR, AR, M)
     AC = ein"abc,cd -> abd"(AL,C)
-
     S = atype(rand(ComplexF64,D,d,D,D,d,D))
-    M = atype(rand(ComplexF64,d,d,d,d))
+    
     function foo1(M)
         _, AC = ACenv(AC, FL, M, FR)
-        A = ein"(abc,abcdef),def -> "(AC,S,AC)
-        B = ein"abc,abc -> "(AC,AC)
+        A = ein"(abc,abcdef),def -> "(AC,S,conj(AC))
+        B = ein"abc,abc -> "(AC,conj(AC))
         return norm(Array(A)[]/Array(B)[])
     end
     @test Zygote.gradient(foo1, M)[1] ≈ num_grad(foo1, M) atol = 1e-8
@@ -173,39 +172,75 @@ end
     S1 = atype(rand(ComplexF64, D, d, D, D, d, D))
     S2 = atype(rand(ComplexF64, D, D, D, D))
 
-    ALu,Cp = leftorth(A)
-    ALd,Cp = leftorth(A)
-    _, ARu = rightorth(A)
-    _, ARd = rightorth(A)
-    M = atype(model_tensor(Ising(),1))
-    _, FL = leftenv(ALu, ALd, M)
-    _, FR = rightenv(ARu, ARd, M)
-
-    ACp = ein"abc,cd -> abd"(ALu,Cp)
+    ALo,Co = leftorth(A)
+    _, ARo = rightorth(ALo)
     M = atype(rand(ComplexF64,d,d,d,d))
+    _, FLo = leftenv(ALo, ALo, M)
+    _, FRo = rightenv(ARo, ARo, M)
+
+    ACo = ein"abc,cd -> abd"(ALo,Co)
+    _, Co = Cenv(Co, FLo, FRo)
     function foo1(M)
-        _, AC = ACenv(ACp, FL, M, FR)
-        _, C = Cenv(Cp, FL, FR)
+        _, AC = ACenv(ACo, FLo, M, FRo)
+        AL, AR, _, _ = ACCtoALAR(AC, Co)
+        s = 0
+        A = ein"(abc,abcdef),def -> "(AL, S1, AL)
+        B = ein"abc,abc -> "(AL, AL)
+        s += norm(Array(A)[]/Array(B)[])
+        A = ein"(abc,abcdef),def -> "(AR, S1, AR)
+        B = ein"abc,abc -> "(AR, AR)
+        s += norm(Array(A)[]/Array(B)[])
+        A = ein"(abc,abcdef),def -> "(AC, S1, AC)
+        B = ein"abc,abc -> "(AC, AC)
+        s += norm(Array(A)[]/Array(B)[])
+        return s
+    end
+    @test isapprox(Zygote.gradient(foo1, M)[1], num_grad(foo1, M), atol=1e-3)
+end
+
+@testset "few steps vumps with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+    Random.seed!(100)
+    D, d = 3, 2
+
+    A = atype(rand(dtype, D, d, D))
+    S1 = atype(rand(ComplexF64, D, d, D, D, d, D))
+    S2 = atype(rand(ComplexF64, D, D, D, D))
+
+    ALo,Co = leftorth(A)
+    _, ARo = rightorth(ALo)
+    M = atype(rand(ComplexF64,d,d,d,d))
+    _, FLo = leftenv(ALo, ALo, M)
+    _, FRo = rightenv(ARo, ARo, M)
+
+    ACo = ein"abc,cd -> abd"(ALo,Co)
+    _, Co = Cenv(Co, FLo, FRo)
+    function foo1(M)
+        _, AC = ACenv(ACo, FLo, M, FRo)
+        AL, AR, _, _ = ACCtoALAR(AC, Co)
+        _, FL = leftenv(ALo, AL, M, FLo)
+        _, FR = rightenv(ARo, AR, M, FRo)
+        _, AC = ACenv(AC, FL, M, FR)
+        _, C = Cenv(Co, FL, FR)
         AL, AR, _, _ = ACCtoALAR(AC, C)
         s = 0
         A = ein"(abc,abcdef),def -> "(AL, S1, AL)
         B = ein"abc,abc -> "(AL, AL)
         s += norm(Array(A)[]/Array(B)[])
-        A = ein"(abc,abcdef),def -> "(AC, S1, AC)
-        B = ein"abc,abc -> "(AC, AC)
-        s += norm(Array(A)[]/Array(B)[])
         A = ein"(abc,abcdef),def -> "(AR, S1, AR)
         B = ein"abc,abc -> "(AR, AR)
         s += norm(Array(A)[]/Array(B)[])
-        A = ein"(ab,abcd),cd -> "(C, S2, C)
-        B = ein"ab,ab -> "(C, C)
+        A = ein"(abc,abcdef),def -> "(AC, S1, AC)
+        B = ein"abc,abc -> "(AC, AC)
+        s += norm(Array(A)[]/Array(B)[])
+        A = ein"(ab,abcd),cd -> "(C,S2,C)
+        B = ein"ab,ab -> "(C,C)
         s += norm(Array(A)[]/Array(B)[])
         return s
     end
-    @test isapprox(Zygote.gradient(foo1, M)[1], num_grad(foo1, M), atol=1e-4)
+    @test isapprox(Zygote.gradient(foo1, M)[1], num_grad(foo1, M), atol=1e-3)
 end
 
-  @testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
+@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64]
     Random.seed!(100)
     d = 2
     D = 3
@@ -241,21 +276,23 @@ end
     Random.seed!(100)
     χ = 10
     model = Ising()
-    function foo1(β)
+    
+    function foo1(β) 
         M = atype(model_tensor(model, β))
-        env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
+        env = vumps_env(model, M; χ=χ, tol=1e-10, maxiter=10, verbose = false, savefile = false, atype = atype)
         magnetisation(env,Ising(),β)
     end
-    # for β = 0.2
+    for β = 0.2:0.2:0.8
+        @show Zygote.gradient(foo1, β)[1], magofdβ(model,β)
+        @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    end
+
+    # function foo2(β)
+    #     M = atype(model_tensor(model, β))
+    #     env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
+    #     magnetisation(env,Ising(),β)
+    # end
+    # for β = 0.4
     #     @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-6
     # end
-
-    function foo2(β) 
-        M = atype(model_tensor(model, β))
-        env = vumps_env(model, M; χ=χ, tol=1e-10, maxiter=1, verbose = false, savefile = false, atype = atype)
-        magnetisation(env,Ising(),β)
-    end
-    for β = 0.4
-        @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-10
-    end
 end

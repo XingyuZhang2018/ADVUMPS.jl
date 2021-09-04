@@ -65,14 +65,16 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
     λl, FL = leftenv(ALu, ALd, M, FL)
     # @show λl
     function back((dλ, dFL))
+        # @show ein"abc,abc ->"(FL, conj(dFL))[]
+        # @show λl
         ξl, info = linsolve(FR -> ein"((abc,ceh),dgeb),fgh -> adf"(ALu, FR, M, conj(ALd)), conj(dFL), -λl, 1; maxiter = 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errL = ein"abc,cba ->"(FL, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, conj(ALd), M, ξl) 
         dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
         dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, conj(ALd), ξl)
-        return NO_FIELDS, dALu, dALd, conj(dM), NO_FIELDS...
+        return NO_FIELDS, conj(dALu), dALd, conj(dM), NO_FIELDS...
     end
     return (λl, FL), back
 end
@@ -105,8 +107,9 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
     λAC, AC = ACenv(AC, FL, M, FR)
     # @show λAC
     function back((dλ, dAC))
+        # @show ein"abc,abc ->"(AC, conj(dAC))[]
         ξ, info = linsolve(AC -> ein"((adf,fgh),dgeb),ceh -> abc"(FL, AC, M, FR), conj(dAC), -λAC, 1; maxiter = 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errAC = ein"abc,abc ->"(AC, ξ)[]
         # abs(errAC) > 1e-1 && throw("AC and ξ aren't orthometric. err = $(errAC)")
         dFL = -ein"((abc,ceh),dgeb),fgh -> adf"(AC, FR, M, ξ)
@@ -138,8 +141,9 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
     λC, C = Cenv(C, FL, FR)
     # @show λC
     function back((dλ, dC))
+        # @show ein"ab,ab ->"(C, conj(dC))[]
         ξ, info = linsolve(C -> ein"(acd,de),bce -> ab"(FL, C, FR), conj(dC), -λC, 1; maxiter = 1)
-        @assert info.converged==1
+        # @assert info.converged==1
         # errC = ein"ab,ab ->"(C, ξ)[]
         # abs(errC) > 1e-1 && throw("C and ξ aren't orthometric. err = $(errC)")
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
