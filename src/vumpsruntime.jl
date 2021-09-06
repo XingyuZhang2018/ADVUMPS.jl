@@ -152,7 +152,7 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, χ::Int, tol = 1e-
     ALu,ARu,Cu,FL,FR = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
 
     Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envup.AL), Array{Float64,2}(envup.C), Array{Float64,3}(envup.AR), Array{Float64,3}(envup.FL), Array{Float64,3}(envup.FR)
+        ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(envup.AL), Array{ComplexF64,2}(envup.C), Array{ComplexF64,3}(envup.AR), Array{ComplexF64,3}(envup.FL), Array{ComplexF64,3}(envup.FR)
         envsave = SquareVUMPSRuntime(Mu, ALs, Cs, ARs, FLs, FRs)
         save(chkp_file_up, "env", envsave)
     end
@@ -169,7 +169,7 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, χ::Int, tol = 1e-
     ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
 
     Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{Float64,3}(envdown.AL), Array{Float64,2}(envdown.C), Array{Float64,3}(envdown.AR), Array{Float64,3}(envdown.FL), Array{Float64,3}(envdown.FR)
+        ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(envdown.AL), Array{ComplexF64,2}(envdown.C), Array{ComplexF64,3}(envdown.AR), Array{ComplexF64,3}(envdown.FL), Array{ComplexF64,3}(envdown.FR)
         envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
         save(chkp_file_down, "env", envsave)
     end  

@@ -162,7 +162,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     Q, R = qrpos(A)
     function back((dQ, dR))
         M = Array(R * dR' - dQ' * Q)
-        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
         # @show ein"ab,ab -> "(A, conj(dA))[]
         return NO_FIELDS, _arraytype(Q)(dA)
     end
@@ -173,7 +173,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     L, Q = lqpos(A)
     function back((dL, dQ))
         M = Array(L' * dL - dQ * Q')
-        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
         # @show ein"ab,ab -> "(A, conj(dA))
         return NO_FIELDS, _arraytype(Q)(dA)
     end

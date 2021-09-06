@@ -10,21 +10,22 @@ ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, ipeps::IPEPS, oc, key; verbose = false)
     model, atype, _, χ, tol, maxiter = key
-    # ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
+    ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
     ap = ein"abcdx,ijkly -> aibjckdlxy"(ipeps.bulk, conj(ipeps.bulk))
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
-
-    env = obs_env(model, a; atype = atype, D = D, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true)
+    
+    # env = obs_env(model, a; atype = atype, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true)
+    env = vumps_env(model, a; atype = atype, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true)
     e = expectationvalue(h, ap, env, oc)
     return e
 end
 
 function optcont(D::Int, χ::Int)
     sd = Dict('n' => D^2, 'f' => χ, 'd' => D^2, 'e' => χ, 'o' => D^2, 'h' => χ, 'j' => χ, 'i' => D^2, 'k' => D^2, 'r' => 2, 's' => 2, 'q' => 2, 'a' => χ, 'c' => χ, 'p' => 2, 'm' => χ, 'g' => D^2, 'l' => χ, 'b' => D^2)
-    oc1 = optimize_greedy(ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs", sd; method=MinSpaceDiff())
+    oc1 = optimize_greedy(ein"cba,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs", sd; method=MinSpaceDiff())
     sd = Dict('a' => χ, 'b' => D^2, 'c' => χ, 'd' => D^2, 'e' => D^2, 'f' => D^2, 'g' => D^2, 'h' => D^2, 'i' => χ, 'j' => D^2, 'k' => χ, 'r' => 2, 's' => 2, 'p' => 2, 'q' => 2, 'l' => χ, 'm' => χ)
     oc2 = optimize_greedy(ein"adgi,abl,lc,dfebpq,gjhfrs,ijm,mk,cehk -> pqrs", sd; method=MinSpaceDiff())
     oc1, oc2
@@ -38,12 +39,12 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc)
-    M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = env
+    M, AL, C, AR, FL, FR = env.M,env.AL,env.C,env.AR,env.FL,env.FR
     oc1, oc2 = oc
     ap /= norm(ap)
     etol = 0
 
-    lr = oc1(FL,ALu,ap,ALd,Cu,Cd,FR,ARu,ap,ARd)
+    lr = oc1(FL,AL,ap,conj(AL),C,conj(C),FR,AR,ap,conj(AR))
     e = ein"pqrs, pqrs -> "(lr,h)
     n = ein"pprr -> "(lr)
     println("── = $(Array(e)[]/Array(n)[])") 
@@ -51,15 +52,15 @@ function expectationvalue(h, ap, env, oc)
 
     # _, BgFL = bigleftenv(ALu, ALd, M)
     # _, BgFR = bigrightenv(ARu, ARd, M)
-    BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
-    BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
-    lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
-    e2 = ein"pqrs, pqrs -> "(lr2,h)
-    n2 = ein"pprr -> "(lr2)
-    println("| = $(Array(e2)[]/Array(n2)[])") 
-    etol += Array(e2)[]/Array(n2)[]
+    # BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
+    # BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
+    # lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
+    # e2 = ein"pqrs, pqrs -> "(lr2,h)
+    # n2 = ein"pprr -> "(lr2)
+    # println("| = $(Array(e2)[]/Array(n2)[])") 
+    # etol += Array(e2)[]/Array(n2)[]
 
-    return etol/2
+    return etol
 end
 
 """
@@ -68,20 +69,20 @@ end
 Initial `ipeps` and give `key` for use of later optimization. The key include `model`, `D`, `χ`, `tol` and `maxiter`. 
 The iPEPS is random initial if there isn't any calculation before, otherwise will be load from file `/data/model_D_chi_tol_maxiter.jld2`
 """
-function init_ipeps(model::HamiltonianModel; atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
+function init_ipeps(model::HamiltonianModel; folder = "./data/", atype = Array, D::Int, χ::Int, tol::Real, maxiter::Int, verbose = true)
     key = (model, atype, D, χ, tol, maxiter)
-    folder = "./data/$(model)_$(atype)/"
+    folder = folder*"$(model)_$(atype)/"
     mkpath(folder)
     chkp_file = folder*"$(model)_$(atype)_D$(D)_chi$(χ)_tol$(tol)_maxiter$(maxiter).jld2"
     if isfile(chkp_file)
         bulk = load(chkp_file)["ipeps"]
         verbose && println("load iPEPS from $chkp_file")
     else
-        bulk = rand(D,D,D,D,2)
+        bulk = rand(ComplexF64,D,D,D,D,2)
         verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps = SquareIPEPS(bulk)
-    # ipeps = indexperm_symmetrize(ipeps)
+    ipeps = indexperm_symmetrize(ipeps)
     return ipeps, key
 end
 
