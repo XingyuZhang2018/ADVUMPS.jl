@@ -115,3 +115,11 @@ end
     ylabel!("time/s")
     savefig(timeplot,"./plot/timeplot_D$(D).svg")
 end
+
+@testset "tr" begin
+    Random.seed!(100)
+    a = rand(ComplexF64, 100,100)
+    b = rand(ComplexF64, 100,100)
+    @btime tr(($(a))'*$(b))
+    @btime ein"ab, ab ->"(conj($(a)), $(b))
+end

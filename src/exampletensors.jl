@@ -40,7 +40,7 @@ return the operator for the magnetisation at inverse temperature `β`
 at a site in the two-dimensional ising model on a square lattice in tensor-network form.
 """
 function mag_tensor(::Ising, β)
-    a = reshape(Float64[1 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 -1] , 2,2,2,2)
+    a = reshape(ComplexF64[1 0 0 0; 0 0 0 0; 0 0 0 0; 0 0 0 -1] , 2,2,2,2)
     cβ, sβ = sqrt(cosh(β)), sqrt(sinh(β))
     q = 1/sqrt(2) * [cβ+sβ cβ-sβ; cβ-sβ cβ+sβ]
     ein"abcd,ai,bj,ck,dl -> ijkl"(a,q,q,q,q)

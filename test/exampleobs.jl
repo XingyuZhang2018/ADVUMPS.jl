@@ -6,7 +6,7 @@ using Plots
 using Random
 using Test
 
-@testset "vumps with $atype" for atype in [Array, CuArray]
+@testset "vumps with $atype" for atype in [Array]
     Random.seed!(100)
     model = Ising()
     for β = 0.2:0.2:0.8

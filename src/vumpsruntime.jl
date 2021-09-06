@@ -103,11 +103,11 @@ function vumpstep(rt::VUMPSRuntime,err)
     _, ACp = ACenv(AC, FL, M, FR)
     _, Cp = Cenv(C, FL, FR)
     ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
-    _, FL = leftenv(ALp, ALp, M, FL)
-    _, FR = rightenv(ARp, ARp, M, FR)
-    # _, ACp = ACenv(ACp, FL, M, FR)
-    # _, Cp = Cenv(Cp, FL, FR)
-    # ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
+    _, FL = leftenv(AL, ALp, M, FL)
+    _, FR = rightenv(AR, ARp, M, FR)
+    _, ACp = ACenv(ACp, FL, M, FR)
+    _, Cp = Cenv(Cp, FL, FR)
+    ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
     err = Zygote.@ignore error(ALp,Cp,ARp,FL,M,FR)
     return SquareVUMPSRuntime(M, ALp, Cp, ARp, FL, FR), err
 end
@@ -121,7 +121,7 @@ vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor`
 """
 function vumps_env(model::MT, M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, atype = Array) where {MT <: HamiltonianModel}
     D = size(M,1)
-    mkpath("./data/$(model)_$(atype)")
+    savefile && mkpath("./data/$(model)_$(atype)")
     chkp_file = "./data/$(model)_$(atype)/D$(D)_χ$(χ).jld2"
     if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
@@ -138,8 +138,9 @@ end
 
 If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
 """
-function obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false) where {MT <: HamiltonianModel}
-    mkpath("./data/$(model)_$(atype)")
+function obs_env(model::MT, Mu::AbstractArray; atype = Array, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false) where {MT <: HamiltonianModel}
+    savefile && mkpath("./data/$(model)_$(atype)")
+    D = size(Mu,1)
     chkp_file_up = "./data/$(model)_$(atype)/up_D$(D)_chi$(χ).jld2"
     verbose && print("↑ ")
     if isfile(chkp_file_up)                               

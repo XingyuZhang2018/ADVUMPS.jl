@@ -70,13 +70,13 @@ end
     λↄs, ↄs, info = eigsolve(ↄ -> ein"acde,ce -> ad"(工,ↄ), atype(rand(dtype, D,D)), 1, :LM)
     λↄ, ↄ = λↄs[1], ↄs[1]
 
-    dc = atype(rand(dtype, D,D))
+    dc = atype(rand(ComplexF64, D,D))
     dc -= Array(ein"ab,ab -> "(conj(c), dc))[] * c
     @test Array(ein"ab,ab -> "(conj(c), dc))[] ≈ 0 atol = 1e-9
     ξc, info = linsolve(ↄ -> ein"acde,ce -> ad"(工,ↄ), conj(dc), -λc, 1)
     @test Array(ein"ab,ab -> "(c, ξc))[] ≈ 0 atol = 1e-9
 
-    dↄ = atype(rand(dtype, D,D))
+    dↄ = atype(rand(ComplexF64, D,D))
     dↄ -= Array(ein"ab,ab -> "(conj(ↄ),dↄ))[] * ↄ
     @test Array(ein"ab,ab -> "(conj(ↄ),dↄ))[] ≈ 0 atol = 1e-9
     ξↄ, info = linsolve(c -> ein"ad,acde -> ce"(c,工), conj(dↄ), -λↄ, 1)
@@ -98,7 +98,7 @@ end
     Zygote.gradient(foo, 1)[1]
 end
 
-@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+@testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
     D = 3
@@ -128,7 +128,7 @@ end
     @test Zygote.gradient(foo2, M)[1] ≈ num_grad(foo2, M) atol = 1e-8
 end
 
-@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+@testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
     D = 3
@@ -164,7 +164,7 @@ end
     @test Zygote.gradient(foo2, M)[1] ≈ num_grad(foo2, M) atol = 1e-8
 end
 
-@testset "ACCtoALAR with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+@testset "ACCtoALAR with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     D, d = 3, 2
 
@@ -198,7 +198,7 @@ end
     @test isapprox(Zygote.gradient(foo1, M)[1], num_grad(foo1, M), atol=1e-3)
 end
 
-@testset "few steps vumps with $atype{$dtype}" for atype in [Array], dtype in [Float64, ComplexF64]
+@testset "few steps vumps with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     D, d = 3, 2
 
@@ -272,27 +272,28 @@ end
     @test Zygote.gradient(foo2, 1)[1] ≈ num_grad(foo2, 1) atol = 1e-8
 end
 
-@testset "vumps with $atype{$dtype}" for atype in [Array], dtype in [Float64]
+@testset "vumps with $atype" for atype in [Array, CuArray]
     Random.seed!(100)
     χ = 10
     model = Ising()
     
     function foo1(β) 
         M = atype(model_tensor(model, β))
-        env = vumps_env(model, M; χ=χ, tol=1e-10, maxiter=10, verbose = false, savefile = false, atype = atype)
+        env = vumps_env(model, M; χ=χ, tol=1e-15, maxiter=10, verbose = true, savefile = false, atype = atype)
         magnetisation(env,Ising(),β)
     end
     for β = 0.2:0.2:0.8
-        @show Zygote.gradient(foo1, β)[1], magofdβ(model,β)
+        @show β
         @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
     end
 
-    # function foo2(β)
-    #     M = atype(model_tensor(model, β))
-    #     env = obs_env(model, M; atype = atype, D = 2, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
-    #     magnetisation(env,Ising(),β)
-    # end
-    # for β = 0.4
-    #     @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-6
-    # end
+    function foo2(β)
+        M = atype(model_tensor(model, β))
+        env = obs_env(model, M; atype = atype, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
+        magnetisation(env,Ising(),β)
+    end
+    for β = 0.1:0.1:0.4
+        @show β
+        @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    end
 end
