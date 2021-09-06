@@ -79,6 +79,25 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
     return (λl, FL), back
 end
 
+function ChainRulesCore.rrule(::typeof(obs_leftenv), ALu::AbstractArray{T}, ALd::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
+    λl, FL = obs_leftenv(ALu, ALd, M, FL)
+    # @show λl
+    function back((dλ, dFL))
+        # @show ein"abc,abc ->"(conj(FL), dFL)[]
+        dFL -= Array(ein"abc,abc ->"(conj(FL), dFL))[] * FL
+        ξl, info = linsolve(FR -> ein"((abc,ceh),dgeb),fgh -> adf"(ALu, FR, M, ALd), conj(dFL), -λl, 1; maxiter = 1)
+        @assert info.converged==1
+        # errL = ein"abc,cba ->"(FL, ξl)[]
+        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
+        dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, ALd, M, ξl) 
+        dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
+        dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, ALd, ξl)
+        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
+    end
+    return (λl, FL), back
+end
+
+
 """
     ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::AbstractArray{T}, M::AbstractArray{T}, FR::AbstractArray{T}; 
 
@@ -212,13 +231,13 @@ dM = - FL   │    ξl  - FL   │    ξl
        │    │    │     │    │    │ 
        ┕── ALd ──┘     ┕── ALd ──┘ 
 
-        ┌──     ──┐     ┌── ALu ──┐ 
-        │    │    │     │    │    │ 
-        │ ── M ── │     │ ── M ── │ 
-dAL = - FL   │    ξl  - FL   │    ξl
-        │ ── M ── │     │ ── M ── │ 
-        │    │    │     │    │    │ 
-        ┕── ALd ──┘     ┕──     ──┘ 
+        ┌──     ──┐     ┌── ALu ──┐        a ────┬──── c
+        │    │    │     │    │    │        │     b     │
+        │ ── M ── │     │ ── M ── │        ├─ d ─┼─ e ─┤
+dAL = - FL   │    ξl  - FL   │    ξl       │     f     │
+        │ ── M ── │     │ ── M ── │        ├─ g ─┼─ h ─┤
+        │    │    │     │    │    │        │     j     │
+        ┕── ALd ──┘     ┕──     ──┘        i ────┴──── k
 
 ```
 """
@@ -226,13 +245,15 @@ function ChainRulesCore.rrule(::typeof(bigleftenv), ALu::AbstractArray{T}, ALd::
     λl, FL4 = bigleftenv(ALu, ALd, M, FL4; kwargs...)
     # @show λl
     function back((dλl, dFL4))
-        ξl, info = linsolve(FR4 -> ein"(((fghi,def),ckge),bjhk),aji -> dcba"(FR4,ALu,M,M,ALd), dFL4, -λl, 1; maxiter = 1)
+        dFL4 -= Array(ein"abcd,abcd ->"(conj(FL4), dFL4))[] * FL4
+        ξl, info = linsolve(FR4 -> ein"(((cehk,abc),dfeb),gjhf),ijk -> adgi"(FR4,ALu,M,M,ALd), conj(dFL4), -λl, 1; maxiter = 1)
+        @assert info.converged==1
         # errL = ein"abc,cba ->"(FL4, ξl)[]
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
-        dALu = -ein"(((adgi,ijk),gjhf),dfeb), cehk -> abc"(FL4, ALd, M, M, ξl)
-        dALd = -ein"(((adgi,abc),dfeb),gjhf), cehk -> ijk"(FL4, ALu, M, M, ξl)
+        dALu = -ein"(((adgi,ijk),gjhf),dfeb),cehk -> abc"(FL4, ALd, M, M, ξl)
+        dALd = -ein"(((adgi,abc),dfeb),gjhf),cehk -> ijk"(FL4, ALu, M, M, ξl)
         dM = -ein"(adgi,abc),(gjhf,(ijk,cehk)) -> dfeb"(FL4, ALu, M, ALd, ξl) - ein"((adgi,abc),dfeb),(ijk,cehk)-> gjhf"(FL4, ALu, M, ALd, ξl)
-        return NO_FIELDS, dALu, dALd, dM, NO_FIELDS...
+        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
     end
     return (λl, FL4), back
 end

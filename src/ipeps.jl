@@ -38,9 +38,9 @@ permutation of its virtual indices.
 """
 function indexperm_symmetrize(ipeps::SquareIPEPS)
     x = ipeps.bulk
-    x += permutedims(conj(x), (1,4,3,2,5)) # up-down
-    x += permutedims(conj(x), (3,2,1,4,5)) # left-right
-    x += permutedims(conj(x), (2,1,4,3,5)) # diagonal
-    x += permutedims(conj(x), (4,3,2,1,5)) # rotation
+    x += permutedims(x, (1,4,3,2,5)) # up-down
+    x += permutedims(x, (3,2,1,4,5)) # left-right
+    x += permutedims(x, (2,1,4,3,5)) # diagonal
+    x += permutedims(x, (4,3,2,1,5)) # rotation
     return SquareIPEPS(x / norm(x))
 end

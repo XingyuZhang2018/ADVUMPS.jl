@@ -175,6 +175,54 @@ function rightenv(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,
 end
 
 """
+    λ, FL = obs_leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
+
+Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
+of `ALu - M - ALd` contracted along the physical dimension.
+```
+┌── ALu─       ┌──       a ────┬──── c 
+│    │         │         │     b     │ 
+FL ─ M ─  = λL FL─       ├─ d ─┼─ e ─┤ 
+│    │         │         │     g     │ 
+┕── ALd─       ┕──       f ────┴──── h 
+```
+"""
+
+function obs_leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
+    λs, FLs, info = eigsolve(FL -> ein"((adf,abc),dgeb),fgh -> ceh"(FL,ALu,M,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
+    # if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    #     @show λs
+    #     if real(λs[1]) > 0
+    #         return real(λs[1]), real(FLs[1])
+    #     else
+    #         return real(λs[2]), real(FLs[2])
+    #     end
+    # end
+    # @show info,λs
+    return λs[1], FLs[1]
+end
+
+"""
+    λ, FR = obs_rightenv(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
+
+Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
+of `ARu - M - ARd` contracted along the physical dimension.
+```
+ ─ ARu──┐         ──┐   
+    │   │           │   
+ ─  M ──FR   = λR ──FR  
+    │   │           │   
+ ─ ARd──┘         ──┘  
+```
+"""
+function obs_rightenv(ARu, ARd, M, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), size(M,3), size(ARd,3))); kwargs...)
+    ALu = permutedims(ARu,(3,2,1))
+    ALd = permutedims(ARd,(3,2,1))
+    ML = permutedims(M,(3,2,1,4))
+    return obs_leftenv(ALu, ALd, ML, FR; kwargs...)
+end
+
+"""
     λ, FL = norm_FL(ALu, ALd, FL; kwargs...)
 
 Compute the left environment tensor for normalization, by finding the left fixed point
@@ -223,7 +271,7 @@ FL4  │    = λL FL4          │     f     │
 ```
 """
 function bigleftenv(ALu, ALd, M, FL4 = _arraytype(ALu)(rand(eltype(ALu), size(ALu,3), size(M,1), size(M,1), size(ALd,3))); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,conj(ALd)), FL4, 1, :LM; ishermitian = false, kwargs...)
+    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,ALd), FL4, 1, :LM; ishermitian = false, kwargs...)
     return λFL4s[1], FL4s[1]
 end
 
@@ -242,7 +290,7 @@ of `ARu - M - ARd` contracted along the physical dimension.
  ─ ARd──┘         ──┘ 
 ```
 """
-function bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(randn(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
+function bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(rand(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
     ALu = permutedims(ARu,(3,2,1))
     ALd = permutedims(ARd,(3,2,1))
     ML = permutedims(M,(3,2,1,4))

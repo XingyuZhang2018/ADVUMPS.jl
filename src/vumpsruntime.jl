@@ -174,8 +174,8 @@ function obs_env(model::MT, Mu::AbstractArray; atype = Array, χ::Int, tol = 1e-
         save(chkp_file_down, "env", envsave)
     end  
 
-    _, FLo = leftenv(ALu, ALd, Mu, FL)
-    _, FRo = rightenv(ARu, ARd, Mu, FR)  
+    _, FLo = obs_leftenv(ALu, ALd, Mu, FL)
+    _, FRo = obs_rightenv(ARu, ARd, Mu, FR)  
    
     Mu, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR
 end
