@@ -83,8 +83,8 @@ function magnetisation(env, model::MT, β) where {MT <: HamiltonianModel}
     Mag = _arraytype(M)(mag_tensor(model, β))
     ACu = ein"abc,cd -> abd"(ALu,Cu)
     ACd = ein"abc,cd -> abd"(ALd,Cd)
-    mag = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Mag,FR,conj(ACd))
-    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,conj(ACd))
+    mag = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Mag,FR,ACd)
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,ACd)
     return abs(real(Array(mag)[]/Array(λ)[]))
 end
 
@@ -100,8 +100,8 @@ function energy(env, model::MT, β) where {MT <: HamiltonianModel}
     Ene = _arraytype(M)(energy_tensor(model, β))
     ACu = ein"abc,cd -> abd"(ALu,Cu)
     ACd = ein"abc,cd -> abd"(ALd,Cd)
-    energy = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Ene,FR,conj(ACd))
-    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,conj(ACd))
+    energy = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,Ene,FR,ACd)
+    λ = ein"(((adf,abc),dgeb),ceh),fgh -> "(FL,ACu,M,FR,ACd)
     return real(Array(energy)[]/Array(λ)[]*2) # factor 2 for counting horizontal and vertical links
 end
 

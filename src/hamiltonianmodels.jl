@@ -77,5 +77,5 @@ function hamiltonian(model::Heisenberg)
         model.Jx * ein"ij,kl -> ijkl"(σx, σx) -
         model.Jy * ein"ij,kl -> ijkl"(σy, σy)
     h = ein"ijcd,kc,ld -> ijkl"(h,σx,σx')
-    real(h ./ 2)
+    h ./ 2
 end

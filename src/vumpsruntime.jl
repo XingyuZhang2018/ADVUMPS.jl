@@ -119,17 +119,21 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(model::MT, M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, atype = Array) where {MT <: HamiltonianModel}
+function vumps_env(model::MT, M::AbstractArray; atype = Array, χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, folder::String="./data/", direction::String= "up") where {MT <: HamiltonianModel}
     D = size(M,1)
-    savefile && mkpath("./data/$(model)_$(atype)")
-    chkp_file = "./data/$(model)_$(atype)/D$(D)_χ$(χ).jld2"
+    savefile && mkpath(folder*"$(model)_$(atype)")
+    chkp_file = folder*"$(model)_$(atype)/$(direction)_D$(D)_χ$(χ).jld2"
     if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
     else
         rt = SquareVUMPSRuntime(M, Val(:random), χ; verbose = verbose)
     end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose)
-    savefile && save(chkp_file, "env", env) # if forward steps is too small, backward go to this way will make mistake!!!
+    Zygote.@ignore savefile && begin
+        ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(env.AL), Array{ComplexF64,2}(env.C), Array{ComplexF64,3}(env.AR), Array{ComplexF64,3}(env.FL), Array{ComplexF64,3}(env.FR)
+        envsave = SquareVUMPSRuntime(M, ALs, Cs, ARs, FLs, FRs)
+        save(chkp_file, "env", envsave)
+    end # if forward steps is too small, backward go to this way will make mistake!!!
     return env
 end
 
@@ -138,44 +142,20 @@ end
 
 If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
 """
-function obs_env(model::MT, Mu::AbstractArray; atype = Array, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false) where {MT <: HamiltonianModel}
-    savefile && mkpath("./data/$(model)_$(atype)")
-    D = size(Mu,1)
-    chkp_file_up = "./data/$(model)_$(atype)/up_D$(D)_chi$(χ).jld2"
-    verbose && print("↑ ")
-    if isfile(chkp_file_up)                               
-        rtup = SquareVUMPSRuntime(Mu, chkp_file_up, χ; verbose = verbose)   
+function obs_env(model::MT, M::AbstractArray; atype = Array, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false, folder::String="./data/", updown = true) where {MT <: HamiltonianModel}
+    envup = vumps_env(model, M; atype = atype, χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "up")
+    ALu,ARu,Cu,FLu,FRu = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
+    if updown 
+        Md = permutedims(M, (1,4,3,2))
+        envdown = vumps_env(model, Md; atype = atype, χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "down")
+        ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
+
+        _, FLo = obs_leftenv(ALu, ALd, M, FLu)
+        _, FRo = obs_rightenv(ARu, ARd, M, FRu)
     else
-        rtup = SquareVUMPSRuntime(Mu, Val(:random), χ; verbose = verbose)
+        ALd,ARd,Cd = ALu,ARu,Cu
+        _, FLo = obs_leftenv(ALu, ALu, M, FLu)
+        _, FRo = obs_rightenv(ARu, ARu, M, FRu)
     end
-    envup = vumps(rtup; tol=tol, maxiter=maxiter, verbose = verbose)
-    ALu,ARu,Cu,FL,FR = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
-
-    Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(envup.AL), Array{ComplexF64,2}(envup.C), Array{ComplexF64,3}(envup.AR), Array{ComplexF64,3}(envup.FL), Array{ComplexF64,3}(envup.FR)
-        envsave = SquareVUMPSRuntime(Mu, ALs, Cs, ARs, FLs, FRs)
-        save(chkp_file_up, "env", envsave)
-    end
-
-    Md = permutedims(Mu, (1,4,3,2))
-    chkp_file_down = "./data/$(model)_$(atype)/down_D$(D)_chi$(χ).jld2"
-    verbose && print("↓ ")
-    if isfile(chkp_file_down) 
-        rtdown = SquareVUMPSRuntime(Md, chkp_file_down, χ; verbose = verbose)    
-    else      
-        rtdown = SquareVUMPSRuntime(Md, Val(:random), χ; verbose = verbose)   
-    end
-    envdown = vumps(rtdown; tol=tol, maxiter=maxiter, verbose = verbose)
-    ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
-
-    Zygote.@ignore savefile && begin
-        ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(envdown.AL), Array{ComplexF64,2}(envdown.C), Array{ComplexF64,3}(envdown.AR), Array{ComplexF64,3}(envdown.FL), Array{ComplexF64,3}(envdown.FR)
-        envsave = SquareVUMPSRuntime(Md, ALs, Cs, ARs, FLs, FRs)
-        save(chkp_file_down, "env", envsave)
-    end  
-
-    _, FLo = obs_leftenv(ALu, ALd, Mu, FL)
-    _, FRo = obs_rightenv(ARu, ARd, Mu, FR)  
-   
-    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR
+    return M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FLu, FRu
 end
