@@ -10,14 +10,14 @@ ctmrg with parameters `χ`, `tol` and `maxiter`.
 """
 function energy(h, ipeps::IPEPS, oc, key; verbose = false)
     folder, model, atype, _, χ, tol, maxiter = key
-    ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
+    # ipeps = indexperm_symmetrize(ipeps)  # NOTE: this is not good
     D = getd(ipeps)^2
     s = gets(ipeps)
     ap = ein"abcdx,ijkly -> aibjckdlxy"(ipeps.bulk, conj(ipeps.bulk))
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
 
-    env = obs_env(model, a; atype = atype, folder = folder, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true, updown = false)
+    env = obs_env(model, a; atype = atype, folder = folder, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true, updown = true)
     e = expectationvalue(h, ap, env, oc)
     return e
 end
@@ -65,15 +65,15 @@ function expectationvalue(h, ap, env, oc)
     println("── = $(Array(e)[]/Array(n)[])") 
     etol += Array(e)[]/Array(n)[]
 
-    # _, BgFL = bigleftenv(ALu, ALd, M)
-    # _, BgFR = bigrightenv(ARu, ARd, M)
-    # # BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
-    # # BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
-    # lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
-    # e2 = ein"pqrs, pqrs -> "(lr2,h)
-    # n2 = ein"pprr -> "(lr2)
-    # println("| = $(Array(e2)[]/Array(n2)[])") 
-    # etol += Array(e2)[]/Array(n2)[]
+    _, BgFL = bigleftenv(ALu, ALd, M)
+    _, BgFR = bigrightenv(ARu, ARd, M)
+    # BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
+    # BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
+    lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
+    e2 = ein"pqrs, pqrs -> "(lr2,h)
+    n2 = ein"pprr -> "(lr2)
+    println("| = $(Array(e2)[]/Array(n2)[])") 
+    etol += Array(e2)[]/Array(n2)[]
 
     return etol
 end
@@ -97,7 +97,7 @@ function init_ipeps(model::HamiltonianModel; folder = "./data/", atype = Array, 
         verbose && println("random initial iPEPS $chkp_file")
     end
     ipeps = SquareIPEPS(bulk)
-    ipeps = indexperm_symmetrize(ipeps)
+    # ipeps = indexperm_symmetrize(ipeps)
     return ipeps, key
 end
 

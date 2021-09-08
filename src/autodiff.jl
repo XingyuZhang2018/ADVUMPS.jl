@@ -186,7 +186,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
         # x0 -= Array(ein"ab,ab ->"(conj(A), x0))[] * A
         # dA, info = linsolve(x -> x*UpperTriangular(R + I * 1e-12)', b, x0)
         # @assert info.converged==1
-        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
         # @show Array(ein"ab,ab -> "(conj(A), dA))[]
         return NO_FIELDS, _arraytype(Q)(dA)
     end
@@ -202,7 +202,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
         # x0 -= Array(ein"ab,ab ->"(conj(A), x0))[] * A
         # dA, info = linsolve(x -> LowerTriangular(L + I * 1e-12)'*x, b, x0)
          # @assert info.converged==1
-        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
         # @show Array(ein"ab,ab -> "(conj(A), dA))[]
         return NO_FIELDS, _arraytype(Q)(dA)
     end

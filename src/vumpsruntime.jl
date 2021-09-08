@@ -123,6 +123,7 @@ function vumps_env(model::MT, M::AbstractArray; atype = Array, χ=20, tol=1e-10,
     D = size(M,1)
     savefile && mkpath(folder*"$(model)_$(atype)")
     chkp_file = folder*"$(model)_$(atype)/$(direction)_D$(D)_χ$(χ).jld2"
+    verbose && direction == "up" ? print("↑ ") : print("↓ ")
     if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
     else
