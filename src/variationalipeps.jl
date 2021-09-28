@@ -75,7 +75,7 @@ function expectationvalue(h, ap, env, oc)
     println("| = $(Array(e2)[]/Array(n2)[])") 
     etol += Array(e2)[]/Array(n2)[]
 
-    return etol
+    return etol/2
 end
 
 """

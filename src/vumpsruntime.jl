@@ -119,10 +119,10 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(model::MT, M::AbstractArray; atype = Array, χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, folder::String="./data/", direction::String= "up") where {MT <: HamiltonianModel}
+function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, folder::String="./data/", direction::String= "up")
     D = size(M,1)
-    savefile && mkpath(folder*"$(model)_$(atype)")
-    chkp_file = folder*"$(model)_$(atype)/$(direction)_D$(D)_χ$(χ).jld2"
+    savefile && mkpath(folder)
+    chkp_file = folder*"$(direction)_D$(D)_χ$(χ).jld2"
     verbose && direction == "up" ? print("↑ ") : print("↓ ")
     if isfile(chkp_file)                               
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
@@ -139,24 +139,21 @@ function vumps_env(model::MT, M::AbstractArray; atype = Array, χ=20, tol=1e-10,
 end
 
 """
-    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = obs_env(model::MT, Mu::AbstractArray; atype = Array, D::Int, χ::Int, verbose = false)
+    Mu, ALu, Cu, ARu, ALd, Cd, ARd, FL, FR = obs_env(Mu::AbstractArray; atype = Array, D::Int, χ::Int, verbose = false)
 
 If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
 """
-function obs_env(model::MT, M::AbstractArray; atype = Array, χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false, folder::String="./data/", updown = true) where {MT <: HamiltonianModel}
-    envup = vumps_env(model, M; atype = atype, χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "up")
+function obs_env(M::AbstractArray; χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false, folder::String="./data/", updown = true)
+    envup = vumps_env(M; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "up")
     ALu,ARu,Cu,FLu,FRu = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
     if updown 
         Md = permutedims(M, (1,4,3,2))
-        envdown = vumps_env(model, Md; atype = atype, χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "down")
+        envdown = vumps_env(Md; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "down")
         ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
-
-        _, FLo = obs_leftenv(ALu, ALd, M, FLu)
-        _, FRo = obs_rightenv(ARu, ARd, M, FRu)
     else
         ALd,ARd,Cd = ALu,ARu,Cu
-        _, FLo = obs_leftenv(ALu, ALu, M, FLu)
-        _, FRo = obs_rightenv(ARu, ARu, M, FRu)
     end
+    _, FLo = obs_leftenv(ALu, ALd, M, FLu)
+    _, FRo = obs_rightenv(ARu, ARd, M, FRu)
     return M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FLu, FRu
 end

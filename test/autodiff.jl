@@ -33,7 +33,7 @@ end
 end
 
 @testset "QR factorization with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
-    M = atype(rand(dtype, 2, 2))
+    M = atype(rand(dtype, 3, 3))
     function foo(M)
         Q, R = qrpos(M)
         return norm(Q) + norm(R)
@@ -42,7 +42,7 @@ end
 end
 
 @testset "LQ factorization with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
-    M = atype(rand(dtype, 10, 10))
+    M = atype(rand(dtype, 3, 3))
     function foo(M)
         L, Q = lqpos(M)
         return  norm(Q) + norm(L)
@@ -83,19 +83,19 @@ end
     @test Array(ein"ab,ab -> "(ↄ,ξↄ))[] ≈ 0 atol = 1e-9
 end
 
-@testset "loop_einsum mistake with $atype" for atype in [Array, CuArray]
+@testset "loop_einsum mistake with  $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
-    D = 10
-    A = atype(rand(D,D,D))
-    B = atype(rand(D,D))
+    D = 5
+    A = atype(rand(dtype, D,D,D))
+    B = atype(rand(dtype, D,D))
     function foo(x)
         C = A * x
         D = B * x
         E = ein"abc,abc -> "(C,C)
         F = ein"ab,ab -> "(D,D)
-        return Array(E)[]/Array(F)[]
+        return norm(Array(E)[]/Array(F)[])
     end 
-    Zygote.gradient(foo, 1)[1]
+    @test Zygote.gradient(foo, 1)[1] ≈ num_grad(foo, 1) atol = 1e-8
 end
 
 @testset "leftenv and rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]

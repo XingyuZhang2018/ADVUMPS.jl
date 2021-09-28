@@ -7,7 +7,7 @@ using LinearAlgebra: I
 
 @testset "einsum optimize with $atype" for atype in [CuArray]
     D = 4
-    χ = 20
+    χ = 80
     
     C = atype(rand(χ,χ))
     ap = atype(rand(D^2,D^2,D^2,D^2,2,2))
@@ -28,6 +28,9 @@ using LinearAlgebra: I
         return oc
     end
 
+    ein = ein"acd,ab,bce,de -> "
+    xs = (F,C,F,C)
+    oc = getoc(ein, xs)
     # ein = ein"abc,cde,afi,bfgj,dghl,ijk,klm -> ehm"
     # xs = (AL,AL,FL,M,M,AL,AL)
     # oc = getoc(ein, xs)
@@ -87,26 +90,26 @@ using LinearAlgebra: I
     # oc = getoc(ein, xs)
     # @btime $oc($F, $F, $M, $F, $F)
 
-    D = 6
-    χ = 80
-    F = rand(χ,D,χ)
-    ID = Matrix{Float64}(I, D, D)
-    M = ein"ac, bd -> abcd"(ID, ID)
-    Mi = rand(D,D,D,D,2)
-    C = rand(χ,χ)
-    ein = ein"abc,pka,αvp,vβwbν,αβγ,cde,ef,krmdμ,γrσ,fgh,wηygπ,σζ,ζηθ,hij,mtoiξ,θtλ,jou,uyλ-> μνξπ"
-    xs = (F,F,F,Mi,F,F,C,Mi,F,F,Mi,C,F,F,Mi,F,F,F)
-    oc = getoc(ein, xs)
-    @btime $oc($F, $F, $F, $Mi, $F, $F, $C, $Mi, $F, $F, $Mi, $C, $F, $F, $Mi, $F, $F, $F)
-    ein = ein"abc,cde,ef,fgh,hij,pka,kqlb,lrmdμ,msng,ntoiξ,jou,αvp,vβwqν,wδxr,xηysπ,yκzt,uzλ,αβγ,γδσ,σζ,ζηθ,θκλ -> μνξπ"
-    xs = (F,F,C,F,F,F,M,Mi,M,Mi,F,F,Mi,M,Mi,M,F,F,F,C,F,F)
-    oc = getoc(ein, xs)
-    @btime $oc($F, $F, $C, $F, $F, $F, $M, $Mi, $M, $Mi, $F, $F, $Mi, $M, $Mi, $M, $F, $F, $F, $C, $F, $F)
-    F = reshape(ein"abc,cde -> abde"(F,F), (χ,D^2,χ))
-    MM = ein"abcdx,ijkly -> aibjckdlxy"(Mi, Mi)
-    MM = reshape(MM, D^2, D^2, D^2, D^2, 2, 2)
-    ein = ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs"
-    xs = (F,F,MM,F,C,C,F,F,MM,F)
-    oc = getoc(ein, xs)
-    @btime $oc($F, $F, $MM, $F, $C, $C, $F, $F, $MM, $F)
+    # D = 6
+    # χ = 80
+    # F = rand(χ,D,χ)
+    # ID = Matrix{Float64}(I, D, D)
+    # M = ein"ac, bd -> abcd"(ID, ID)
+    # Mi = rand(D,D,D,D,2)
+    # C = rand(χ,χ)
+    # ein = ein"abc,pka,αvp,vβwbν,αβγ,cde,ef,krmdμ,γrσ,fgh,wηygπ,σζ,ζηθ,hij,mtoiξ,θtλ,jou,uyλ-> μνξπ"
+    # xs = (F,F,F,Mi,F,F,C,Mi,F,F,Mi,C,F,F,Mi,F,F,F)
+    # oc = getoc(ein, xs)
+    # @btime $oc($F, $F, $F, $Mi, $F, $F, $C, $Mi, $F, $F, $Mi, $C, $F, $F, $Mi, $F, $F, $F)
+    # ein = ein"abc,cde,ef,fgh,hij,pka,kqlb,lrmdμ,msng,ntoiξ,jou,αvp,vβwqν,wδxr,xηysπ,yκzt,uzλ,αβγ,γδσ,σζ,ζηθ,θκλ -> μνξπ"
+    # xs = (F,F,C,F,F,F,M,Mi,M,Mi,F,F,Mi,M,Mi,M,F,F,F,C,F,F)
+    # oc = getoc(ein, xs)
+    # @btime $oc($F, $F, $C, $F, $F, $F, $M, $Mi, $M, $Mi, $F, $F, $Mi, $M, $Mi, $M, $F, $F, $F, $C, $F, $F)
+    # F = reshape(ein"abc,cde -> abde"(F,F), (χ,D^2,χ))
+    # MM = ein"abcdx,ijkly -> aibjckdlxy"(Mi, Mi)
+    # MM = reshape(MM, D^2, D^2, D^2, D^2, 2, 2)
+    # ein = ein"abc,cde,bnodpq,anm,ef,ml,hij,fgh,okigrs,lkj -> pqrs"
+    # xs = (F,F,MM,F,C,C,F,F,MM,F)
+    # oc = getoc(ein, xs)
+    # @btime $oc($F, $F, $MM, $F, $C, $C, $F, $F, $MM, $F)
 end
