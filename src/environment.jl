@@ -12,9 +12,7 @@ f ────┴──── h    d──────┴──────e
 ```
 """
 
-#https://github.com/JuliaGPU/CuArrays.jl/issues/283
 safesign(x::Number) = iszero(x) ? one(x) : sign(x)
-CUDA.@cufunc safesign(x::CublasFloat) = iszero(x) ? one(x) : x/abs(x)
 
 """
     qrpos(A)
