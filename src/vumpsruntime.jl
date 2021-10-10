@@ -119,9 +119,12 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, folder::String="./data/", direction::String= "up")
+function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, savefile = false, folder::String="./data/", direction::String= "up", downfromup = false)
     D = size(M,1)
     savefile && mkpath(folder)
+    if downfromup && direction == "down"
+        direction = "up"
+    end
     chkp_file = folder*"$(direction)_D$(D)_χ$(χ).jld2"
     verbose && direction == "up" ? print("↑ ") : print("↓ ")
     if isfile(chkp_file)                               
@@ -143,12 +146,12 @@ end
 
 If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
 """
-function obs_env(M::AbstractArray; χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false, folder::String="./data/", updown = true)
+function obs_env(M::AbstractArray; χ::Int, tol = 1e-10, maxiter = 10, verbose = false, savefile = false, folder::String="./data/", updown = true, downfromup = false)
     envup = vumps_env(M; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "up")
     ALu,ARu,Cu,FLu,FRu = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
     if updown 
         Md = permutedims(M, (1,4,3,2))
-        envdown = vumps_env(Md; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "down")
+        envdown = vumps_env(Md; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, savefile = savefile, folder = folder, direction = "down", downfromup = downfromup)
         ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
     else
         ALd,ARd,Cd = ALu,ARu,Cu

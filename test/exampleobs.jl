@@ -1,5 +1,5 @@
 using ADVUMPS
-using ADVUMPS: magnetisation,Z,energy,Zofβ,magofβ,eneofβ,magofdβ,num_grad,obs_env,norm_FL,norm_FR
+using ADVUMPS: magnetisation,Z, energy,Zofβ,magofβ,eneofβ,magofdβ,num_grad,obs_env,norm_FL,norm_FR
 using CUDA
 using OMEinsum
 using Plots
@@ -9,12 +9,14 @@ using Test
 @testset "vumps with $atype" for atype in [Array]
     Random.seed!(100)
     model = Ising()
-    for β = 0.2:0.2:0.8
+    for β = log(1+sqrt(2))/2
         M = atype(model_tensor(model, β))
-        env = vumps_env(model, M; χ = 10, tol=1e-20, maxiter=10, verbose = true, savefile = false, atype = atype)
-        @test isapprox(Z(env), Zofβ(Ising(),β), atol=1e-5)
-        @test isapprox(magnetisation(env,Ising(),β), magofβ(Ising(),β), atol=1e-5)
-        @test isapprox(energy(env,Ising(),β), eneofβ(Ising(),β), atol=1e-3)
+        env = vumps_env(M; χ = 100, tol=1e-20, maxiter=10, verbose = true, savefile = false)
+        # @test isapprox(Z(env), Zofβ(Ising(),β), atol=1e-5)
+        # @test isapprox(magnetisation(env,Ising(),β), magofβ(Ising(),β), atol=1e-5)
+        @show energy(env,Ising(),β)+1.414213779415974
+        @show log(Z(env))-log(2.53374)
+        # @test isapprox(energy(env,Ising(),β), eneofβ(Ising(),β), atol=1e-3)
     end
 end
 
