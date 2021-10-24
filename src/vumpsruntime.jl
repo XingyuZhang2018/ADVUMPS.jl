@@ -125,8 +125,8 @@ function vumpstep(rt::VUMPSRuntime,err;show_counting=show_every_count(Inf))
     _, FR = rightenv(AR, ARp, M, FR)
     _, ACp = ACenv(ACp, FL, M, FR)
     _, Cp = Cenv(Cp, FL, FR)
-    ALp, ARp, _, _ = ACCtoALAR(ACp, Cp)
-    err = Zygote.@ignore error(ALp,Cp,ARp,FL,M,FR)
+    ALp, ARp, errL, errR = ACCtoALAR(ACp, Cp)
+    err = Zygote.@ignore (error(ALp,Cp,ARp,FL,M,FR)+errL+errR)
     return SquareVUMPSRuntime(M, ALp, Cp, ARp, FL, FR), err
 end
 
