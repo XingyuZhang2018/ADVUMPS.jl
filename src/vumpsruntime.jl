@@ -137,7 +137,7 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false,infile=nothing,outfile=nothing, direction::String= "up", downfromup = false, show_every = Inf)
+function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, infile = nothing,outfile = nothing, direction::String= "up", downfromup = false, show_every = Inf)
     D = size(M,1)
     if downfromup && direction == "down"
         direction = "up"
@@ -146,10 +146,10 @@ function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = fal
     chkp_file = "$(infile)_$(direction).jld2"
     verbose && direction == "up" ? print("↑ ") : print("↓ ")
     if isfile(chkp_file)
-        if verbose && print("Initialization from $(chkp_file)\n")
+        verbose && print("Initialization from $(chkp_file)\n")
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
     else
-        if verbose && print("Ramdom Initialization\n")
+        verbose && print("Ramdom Initialization\n")
         rt = SquareVUMPSRuntime(M, Val(:random), χ; verbose = verbose)
     end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose, show_every = show_every)
