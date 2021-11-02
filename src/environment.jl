@@ -140,7 +140,7 @@ FL ─ M ─  = λL FL─       ├─ d ─┼─ e ─┤
 
 function leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"((adf,abc),dgeb),fgh -> ceh"(FL,ALu,M,conj(ALd)), FL, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-12
         @show λs
         if real(λs[1]) > 0
             return real(λs[1]), real(FLs[1])
@@ -188,7 +188,7 @@ FL ─ M ─  = λL FL─       ├─ d ─┼─ e ─┤
 
 function obs_leftenv(ALu, ALd, M, FL = _arraytype(ALu)(rand(eltype(ALu), size(ALu,1), size(M,1), size(ALd,1))); kwargs...)
     λs, FLs, info = eigsolve(FL -> ein"((adf,abc),dgeb),fgh -> ceh"(FL,ALu,M,ALd), FL, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-12
         @show λs
         if real(λs[1]) > 0
             return real(λs[1]), real(FLs[1])
@@ -266,7 +266,7 @@ FL─ M ──FR  =  λAC  │   │   │      ├─ d ─┼─ e ─┤
 """
 function ACenv(AC, FL, M, FR;kwargs...)
     λs, ACs, _ = eigsolve(AC -> ein"((adf,abc),dgeb),ceh -> fgh"(FL,AC,M,FR), AC, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-12
         @show λs
         if real(λs[1]) > 0
             return real(λs[1]), real(ACs[1])
@@ -291,7 +291,7 @@ FL─── FR  =  λC  │     │     ├─ c ─┤
 """
 function Cenv(C, FL, FR;kwargs...)
     λs, Cs, _ = eigsolve(C -> ein"(acd,ab),bce -> de"(FL,C,FR), C, 1, :LM; ishermitian = false, kwargs...)
-    if length(λs) > 1 && norm(real(λs[1]) - real(λs[2])) < 1e-12
+    if length(λs) > 1 && norm(abs(λs[1]) - abs(λs[2])) < 1e-12
         @show λs
         if real(λs[1]) > 0
             return real(λs[1]), real(Cs[1])
@@ -319,13 +319,15 @@ function ACCtoALAR(AC, C)
     QC, RC = qrpos(C)
     AL = reshape(QAC*QC', (D, d, D))
     errL = norm(RAC-RC)
-    # @show errL
-
+    
     LAC, QAC = lqpos(reshape(AC,(D, d*D)))
     LC, QC = lqpos(C)
     AR = reshape(QC'*QAC, (D, d, D))
     errR = norm(LAC-LC)
-    # @show errR
+    if errL+errR >1E-7
+        print("errL=$errL,errR=$errR,det(C)=$(det(Array(C)))\n")
+    end
+
 
     # κ = min(3,D)
     # uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')
