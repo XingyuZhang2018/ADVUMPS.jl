@@ -254,49 +254,6 @@ function norm_FR(ARu, ARd, FR = _arraytype(ARu)(randn(eltype(ARu), size(ARu,3), 
 end
 
 """
-    λ, FL4 = bigleftenv(ALu, ALd, M, FL4 = _arraytype(AL)(rand(eltype(AL), size(AL,1), size(M,1), size(M,1), size(AL,1))); kwargs...)
-
-Compute the left environment tensor for MPS `AL` and MPO `M`, by finding the left fixed point
-of `ALu - M - M - ALd` contracted along the physical dimension.
-```
-┌── ALu─       ┌──          a ────┬──── c
-│    │         │            │     b     │
-│ ── M ─       │──          ├─ d ─┼─ e ─┤
-FL4  │    = λL FL4          │     f     │
-│ ── M ─       │──          ├─ g ─┼─ h ─┤
-│    │         │            │     j     │
-┕── ALd─       ┕──          i ────┴──── k 
-```
-"""
-function bigleftenv(ALu, ALd, M, FL4 = _arraytype(ALu)(rand(eltype(ALu), size(ALu,3), size(M,1), size(M,1), size(ALd,3))); kwargs...)
-    λFL4s, FL4s, info = eigsolve(FL4 -> ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,ALd), FL4, 1, :LM; ishermitian = false, kwargs...)
-    return λFL4s[1], FL4s[1]
-end
-
-"""
-    λ, FR4 = bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(randn(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
-
-Compute the right environment tensor for MPS `AR` and MPO `M`, by finding the right fixed point
-of `ARu - M - ARd` contracted along the physical dimension.
-```
- ─ ARu──┐         ──┐ 
-    │   │           │ 
- ─  M ──│         ──│ 
-    │  FR4   = λR  FR4
- ─  M ──│         ──│ 
-    │   │           │ 
- ─ ARd──┘         ──┘ 
-```
-"""
-function bigrightenv(ARu, ARd, M, FR4 = _arraytype(ARu)(rand(eltype(ARu), size(ARu,1), size(M,3), size(M,3), size(ARd,1))); kwargs...)
-    ALu = permutedims(ARu,(3,2,1))
-    ALd = permutedims(ARd,(3,2,1))
-    ML = permutedims(M,(3,2,1,4))
-    return bigleftenv(ALu, ALd, ML, FR4; kwargs...)
-end
-
-
-"""
 Compute the up environment tensor for MPS `FL`,`FR` and MPO `M`, by finding the up fixed point
     of `FL - M - FR` contracted along the physical dimension.
 ````

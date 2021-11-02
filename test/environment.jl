@@ -104,25 +104,6 @@ end
     @test λR * FR ≈ ein"(ce,abc), dbe -> ad"(FR,ARu,conj(ARd))
 end
 
-@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
-    Random.seed!(100)
-    d = 2
-    D = 3                                      #    a ────┬──── c
-                                               #    │     b     │                                      
-    A = atype(rand(dtype,D,d,D))               #    ├─ d ─┼─ e ─┤
-    M = atype(rand(dtype,d,d,d,d))             #    │     f     │
-                                               #    ├─ g ─┼─ h ─┤
-    ALu, = leftorth(A)                         #    │     j     │
-    ALd, = leftorth(A)                         #    i ────┴──── k 
-    λL,FL4 = bigleftenv(ALu, ALd, M)
-    @test λL * FL4 ≈ ein"(((adgi,abc),dfeb),gjhf),ijk -> cehk"(FL4,ALu,M,M,conj(ALd))
-
-    _, ARu = rightorth(A)
-    _, ARd = rightorth(A)
-    λR,FR4 = bigrightenv(ARu, ARd, M)
-    @test λR * FR4 ≈ ein"(((cehk,abc),dfeb),gjhf),ijk -> adgi"(FR4,ARu,M,M,conj(ARd))
-end
-
 @testset "ACenv and Cenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
@@ -146,6 +127,3 @@ end
     λCu, Cu = Cenv(Cu, FL, FR)
     @test λCu * Cu ≈ ein"(acd,ab),bce -> de"(FL,Cu,FR)
 end
-
-
-
