@@ -324,10 +324,6 @@ function ACCtoALAR(AC, C)
     LC, QC = lqpos(C)
     AR = reshape(QC'*QAC, (D, d, D))
     errR = norm(LAC-LC)
-    if errL+errR >1E-7
-        print("errL=$errL,errR=$errR,det(C)=$(det(Array(C)))\n")
-    end
-
 
     # κ = min(3,D)
     # uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')

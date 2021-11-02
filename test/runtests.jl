@@ -32,8 +32,8 @@ using Test
         include("autodiff.jl")
     end
 
-    @testset "variationalipeps" begin
-        println("variationalipeps tests running...")
-        include("variationalipeps.jl")
-    end
+    # @testset "variationalipeps" begin
+    #     println("variationalipeps tests running...")
+    #     include("variationalipeps.jl")
+    # end
 end

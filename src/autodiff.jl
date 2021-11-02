@@ -11,18 +11,11 @@ using KrylovKit
 @Zygote.nograd load
 @Zygote.nograd error
 
-# function ChainRulesCore.rrule(::typeof(Base.getindex),arr::CuArray)   
-#     function back(dy)     
-#         return NO_FIELDS,OMEinsum.asarray(dy, arr)
-#     end           
-#     return getindex(arr), back
-# end 
-
 # patch since it's currently broken otherwise
 function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
     y = Base.typed_hvcat(T, rows, xs...)
     function back(ȳ)
-        return NO_FIELDS, NO_FIELDS, NO_FIELDS, permutedims(ȳ)...
+        return NoTangent(), NoTangent(), NoTangent(), permutedims(ȳ)...
     end
     return y, back
 end
@@ -32,7 +25,7 @@ end
 function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
     n = norm(A)
     function back(Δ)
-        return NO_FIELDS, Δ .* A ./ (n + eps(0f0)), NO_FIELDS
+        return NoTangent(), Δ .* A ./ (n + eps(0f0)), NoTangent()
     end
     return n, back
 end
@@ -74,7 +67,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), ALu::AbstractArray{T}, ALd::Abs
         dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, conj(ALd), M, ξl) 
         dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
         dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, conj(ALd), ξl)
-        return NO_FIELDS, conj(dALu), dALd, conj(dM), NO_FIELDS...
+        return NoTangent(), conj(dALu), dALd, conj(dM), NoTangent()...
     end
     return (λl, FL), back
 end
@@ -92,7 +85,7 @@ function ChainRulesCore.rrule(::typeof(obs_leftenv), ALu::AbstractArray{T}, ALd:
         dALu = -ein"((adf,fgh),dgeb),ceh -> abc"(FL, ALd, M, ξl) 
         dALd = -ein"((adf,abc),dgeb),ceh -> fgh"(FL, ALu, M, ξl)
         dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, ALu, ALd, ξl)
-        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
+        return NoTangent(), conj(dALu), conj(dALd), conj(dM), NoTangent()...
     end
     return (λl, FL), back
 end
@@ -135,7 +128,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
         dFL = -ein"((abc,ceh),dgeb),fgh -> adf"(AC, FR, M, ξ)
         dM = -ein"(adf,abc),(fgh,ceh) -> dgeb"(FL, AC, ξ, FR)
         dFR = -ein"((abc,adf),dgeb),fgh -> ceh"(AC, FL, M, ξ)
-        return NO_FIELDS, NO_FIELDS, conj(dFL), conj(dM), conj(dFR)
+        return NoTangent(), NoTangent(), conj(dFL), conj(dM), conj(dFR)
     end
     return (λAC, AC), back
 end
@@ -170,7 +163,7 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"(ab,bce),de -> acd"(C, FR, ξ)
         dFR = -ein"(ab,acd),de -> bce"(C, FL, ξ)
-        return NO_FIELDS, NO_FIELDS, conj(dFL), conj(dFR)
+        return NoTangent(), NoTangent(), conj(dFL), conj(dFR)
     end
     return (λC, C), back
 end
@@ -186,9 +179,9 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
         # x0 -= Array(ein"ab,ab ->"(conj(A), x0))[] * A
         # dA, info = linsolve(x -> x*UpperTriangular(R + I * 1e-12)', b, x0)
         # @assert info.converged==1
-        dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
+        dA = (UpperTriangular(R + I * 1e-12) \ (dQ + Q * _arraytype(Q)(Hermitian(M, :L)))' )'
         # @show Array(ein"ab,ab -> "(conj(A), dA))[]
-        return NO_FIELDS, _arraytype(Q)(dA)
+        return NoTangent(), _arraytype(Q)(dA)
     end
     return (Q, R), back
 end
@@ -202,9 +195,9 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
         # x0 -= Array(ein"ab,ab ->"(conj(A), x0))[] * A
         # dA, info = linsolve(x -> LowerTriangular(L + I * 1e-12)'*x, b, x0)
          # @assert info.converged==1
-        dA = LowerTriangular(L + I * 1e-6)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
+        dA = LowerTriangular(L + I * 1e-12)' \ (dQ + _arraytype(Q)(Hermitian(M, :L)) * Q)
         # @show Array(ein"ab,ab -> "(conj(A), dA))[]
-        return NO_FIELDS, _arraytype(Q)(dA)
+        return NoTangent(), _arraytype(Q)(dA)
     end
     return (L, Q), back
 end
@@ -224,49 +217,11 @@ function ChainRulesCore.rrule(::typeof(mysvd), A::AbstractArray{T,2}) where {T}
         end
         dA = 1/2 * U * (Fp .* (U' * dU - dU' * U) + Fm .* (V' * dV - dV' * V)) * V' + 
                  (I - U * U') * dU * Diagonal(S.^-1) * V' + U * Diagonal(S.^-1) * dV' * (I - V * V')
-        return NO_FIELDS, dA
+        return NoTangent(), dA
     end
     return (U,S,V), back
 end
 
-"""
-    ChainRulesCore.rrule(::typeof(bigleftenv), AL::AbstractArray{T}, M::AbstractArray{T}, FL::AbstractArray{T}; kwargs...) where {T}
-
-``` 
-       ┌── ALu ──┐     ┌── ALu ──┐ 
-       │    │    │     │    │    │ 
-       │ ──   ── │     │ ── M ── │ 
-dM = - FL   │    ξl  - FL   │    ξl
-       │ ── M ── │     │ ──   ── │ 
-       │    │    │     │    │    │ 
-       ┕── ALd ──┘     ┕── ALd ──┘ 
-
-        ┌──     ──┐     ┌── ALu ──┐        a ────┬──── c
-        │    │    │     │    │    │        │     b     │
-        │ ── M ── │     │ ── M ── │        ├─ d ─┼─ e ─┤
-dAL = - FL   │    ξl  - FL   │    ξl       │     f     │
-        │ ── M ── │     │ ── M ── │        ├─ g ─┼─ h ─┤
-        │    │    │     │    │    │        │     j     │
-        ┕── ALd ──┘     ┕──     ──┘        i ────┴──── k
-
-```
-"""
-function ChainRulesCore.rrule(::typeof(bigleftenv), ALu::AbstractArray{T}, ALd::AbstractArray{T}, M::AbstractArray{T}, FL4::AbstractArray{T}; kwargs...) where {T}
-    λl, FL4 = bigleftenv(ALu, ALd, M, FL4; kwargs...)
-    # @show λl
-    function back((dλl, dFL4))
-        dFL4 -= Array(ein"abcd,abcd ->"(conj(FL4), dFL4))[] * FL4
-        ξl, info = linsolve(FR4 -> ein"(((cehk,abc),dfeb),gjhf),ijk -> adgi"(FR4,ALu,M,M,ALd), conj(dFL4), -λl, 1; maxiter = 1)
-        # @assert info.converged==1
-        # errL = ein"abc,cba ->"(FL4, ξl)[]
-        # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
-        dALu = -ein"(((adgi,ijk),gjhf),dfeb),cehk -> abc"(FL4, ALd, M, M, ξl)
-        dALd = -ein"(((adgi,abc),dfeb),gjhf),cehk -> ijk"(FL4, ALu, M, M, ξl)
-        dM = -ein"(adgi,abc),(gjhf,(ijk,cehk)) -> dfeb"(FL4, ALu, M, ALd, ξl) - ein"((adgi,abc),dfeb),(ijk,cehk)-> gjhf"(FL4, ALu, M, ALd, ξl)
-        return NO_FIELDS, conj(dALu), conj(dALd), conj(dM), NO_FIELDS...
-    end
-    return (λl, FL4), back
-end
 
 @doc raw"
     num_grad(f, K::Real; [δ = 1e-5])

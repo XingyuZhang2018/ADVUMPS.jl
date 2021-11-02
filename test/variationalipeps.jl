@@ -15,13 +15,13 @@ CUDA.allowscalar(false)
     D = 2
     model = diaglocal([1,-1.0])
     h = atype(hamiltonian(model))
-    # as = (atype(rand(3,3,3,3,2)) for _ in 1:10)
-    # @test all(a -> -1 < energy(h, model, SquareIPEPS(a); χ=5, tol=1e-10, maxiter=20)/2 < 1, as)
-
+    as = (atype(rand(3,3,3,3,2)) for _ in 1:10)
+    oc = optcont(D, χ)
+    @test all(a -> -1 < energy(h, SquareIPEPS(a), oc, key)/2 < 1, as)
     a = zeros(D,D,D,D,2) .+ 1e-12 * rand(D,D,D,D,2)
     a[1,1,1,1,2] = randn()
     # oc = optcont(D, χ)
-    @test energy(h, model, SquareIPEPS(atype(a)); χ=χ, tol=1e-10, maxiter=20)/2 ≈ -1
+    # @test energy(h, model, SquareIPEPS(atype(a)); χ=χ, tol=1e-10, maxiter=20)/2 ≈ -1
 
     # a = zeros(2,2,2,2,2) .+ 1e-12 * rand(2,2,2,2,2)
     # a[1,1,1,1,1] = randn()

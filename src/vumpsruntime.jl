@@ -101,7 +101,7 @@ end
 function show_every_count(n::Number)
     i = 0
     function counting()
-        i = i+1
+        i += 1
         if mod(i,n)==0
             return i
         else
@@ -111,11 +111,9 @@ function show_every_count(n::Number)
     return counting
 end
 
-function vumpstep(rt::VUMPSRuntime,err;show_counting=show_every_count(Inf))
+function vumpstep(rt::VUMPSRuntime, err; show_counting = show_every_count(Inf))
     temp = show_counting()
-    if temp!=0
-        print("VUMPS Step:$(temp),error=$(err)\n")
-    end
+    temp != 0 && print("vumps@step:$(temp), error=$(err)\n")
     M,AL,C,AR,FL,FR = rt.M,rt.AL,rt.C,rt.AR,rt.FL,rt.FR
     AC = ein"abc,cd -> abd"(AL,C)
     _, ACp = ACenv(AC, FL, M, FR)
@@ -127,6 +125,7 @@ function vumpstep(rt::VUMPSRuntime,err;show_counting=show_every_count(Inf))
     _, Cp = Cenv(Cp, FL, FR)
     ALp, ARp, errL, errR = ACCtoALAR(ACp, Cp)
     err = Zygote.@ignore (error(ALp,Cp,ARp,FL,M,FR)+errL+errR)
+    errL+errR > 1e-8 && temp >= 10 && println("errL=$errL, errR=$errR, det(C)=$(det(Array(Cp)))")
     return SquareVUMPSRuntime(M, ALp, Cp, ARp, FL, FR), err
 end
 
@@ -137,23 +136,17 @@ return the vumps environment of the `model` as a function of the inverse
 temperature `β` and the environment bonddimension `D` as calculated with
 vumps. Save `env` in file `./data/model_β_D.jld2`. Requires that `model_tensor` are defined for `model`.
 """
-function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, infile = nothing,outfile = nothing, direction::String= "up", downfromup = false, show_every = Inf)
-    D = size(M,1)
-    if downfromup && direction == "down"
-        direction = "up"
-    end
-
+function vumps_env(M::AbstractArray; χ=20, tol=1e-10, maxiter=20, verbose = false, infile = nothing, outfile = nothing, direction::String= "up", downfromup = false, show_every = Inf)
+    downfromup && direction == "down" && (direction = "up")
     chkp_file = "$(infile)_$(direction).jld2"
     verbose && direction == "up" ? print("↑ ") : print("↓ ")
     if isfile(chkp_file)
-        verbose && print("Initialization from $(chkp_file)\n")
         rt = SquareVUMPSRuntime(M, chkp_file, χ; verbose = verbose)   
     else
-        verbose && print("Ramdom Initialization\n")
         rt = SquareVUMPSRuntime(M, Val(:random), χ; verbose = verbose)
     end
     env = vumps(rt; tol=tol, maxiter=maxiter, verbose = verbose, show_every = show_every)
-    Zygote.@ignore (outfile!=nothing) && begin
+    Zygote.@ignore (outfile !== nothing) && begin
         ALs, Cs, ARs, FLs, FRs = Array{ComplexF64,3}(env.AL), Array{ComplexF64,2}(env.C), Array{ComplexF64,3}(env.AR), Array{ComplexF64,3}(env.FL), Array{ComplexF64,3}(env.FR)
         envsave = SquareVUMPSRuntime(M, ALs, Cs, ARs, FLs, FRs)
         save("$(outfile)_$(direction).jld2", "env", envsave)
@@ -167,12 +160,11 @@ end
 If the bulk tensor isn't up and down symmetric, the up and down environment are different. So to calculate observable, we must get ACup and ACdown, which is easy to get by overturning the `M`. Then be cautious to get the new `FL` and `FR` environment.
 """
 function obs_env(M::AbstractArray;χ::Int, tol = 1e-10, maxiter = 10, verbose = false, infile=nothing, outfile=nothing, updown = true, downfromup = false, show_every = Inf)
-
-    envup = vumps_env(M; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose, infile=infile,outfile=outfile, direction = "up", show_every=show_every)
+    envup = vumps_env(M; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose, infile=infile, outfile=outfile, direction = "up", show_every=show_every)
     ALu,ARu,Cu,FLu,FRu = envup.AL,envup.AR,envup.C,envup.FL,envup.FR
     if updown 
         Md = permutedims(M, (1,4,3,2))
-        envdown = vumps_env(Md; χ=χ, tol=tol, maxiter=maxiter, verbose = verbose,  infile=infile,outfile=outfile, direction = "down", downfromup = downfromup, show_every=show_every)
+        envdown = vumps_env(Md; χ=χ, tol=tol, maxiter=maxiter, verbose=verbose, infile=infile, outfile=outfile, direction = "down", downfromup=downfromup, show_every=show_every)
         ALd,ARd,Cd = envdown.AL,envdown.AR,envdown.C
     else
         ALd,ARd,Cd = ALu,ARu,Cu

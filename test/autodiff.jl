@@ -1,6 +1,6 @@
 using ADVUMPS
 using ADVUMPS: num_grad
-using ADVUMPS: qrpos,lqpos,mysvd,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,bigleftenv,bigrightenv,obs_leftenv,obs_rightenv
+using ADVUMPS: qrpos,lqpos,mysvd,leftorth,rightorth,leftenv,rightenv,ACenv,Cenv,ACCtoALAR,obs_leftenv,obs_rightenv
 using ADVUMPS: energy,magofdβ,obs_env
 using ChainRulesCore
 using CUDA
@@ -240,62 +240,6 @@ end
     @test isapprox(Zygote.gradient(foo1, M)[1], num_grad(foo1, M), atol=1e-3)
 end
 
-@testset "vumps with $atype" for atype in [Array, CuArray]
-    Random.seed!(100)
-    χ = 10
-    model = Ising()
-    
-    function foo1(β) 
-        M = atype(model_tensor(model, β))
-        env = vumps_env(model, M; χ=χ, tol=1e-15, maxiter=10, verbose = true, savefile = false, atype = atype)
-        magnetisation(env,Ising(),β)
-    end
-    for β = 0.2:0.2:0.8
-        @show β
-        @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
-    end
-
-    function foo2(β)
-        M = atype(model_tensor(model, β))
-        env = obs_env(model, M; atype = atype, χ = χ, tol = 1e-20, maxiter = 10, verbose = true, savefile = false)
-        magnetisation(env,Ising(),β)
-    end
-    for β = 0.1:0.1:0.4
-        @show β
-        @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-8
-    end
-end
-
-@testset "bigleftenv and bigrightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
-    Random.seed!(100)
-    d = 2
-    D = 3
-
-    A = atype(rand(dtype,D,d,D))
-
-    ALu, = leftorth(A)
-    ALd, = leftorth(A)
-    _, ARu = rightorth(A)
-    _, ARd = rightorth(A)
-    S = atype(rand(ComplexF64,D,d,d,D,D,d,d,D))
-    M = atype(rand(ComplexF64,d,d,d,d))
-    function foo1(M)
-        _,FL4 = bigleftenv(ALu, ALd, M)
-        A = ein"(abcd,abcdefgh),efgh -> "(FL4,S,FL4)
-        B = ein"abcd,abcd -> "(FL4,FL4)
-        return norm(Array(A)[]/Array(B)[])
-    end 
-    @test Zygote.gradient(foo1, M)[1] ≈ num_grad(foo1, M) atol = 1e-7
-
-    function foo2(M)
-        _,FR4 = bigrightenv(ARu, ARd, M)
-        A = ein"(abcd,abcdefgh),efgh -> "(FR4,S,FR4)
-        B = ein"abcd,abcd -> "(FR4,FR4)
-        return norm(Array(A)[]/Array(B)[])
-    end
-    @test Zygote.gradient(foo2, M)[1] ≈ num_grad(foo2, M) atol = 1e-7
-end
-
 @testset "obs_leftenv and obs_rightenv with $atype{$dtype}" for atype in [Array, CuArray], dtype in [Float64, ComplexF64]
     Random.seed!(100)
     d = 2
@@ -324,4 +268,30 @@ end
         return norm(Array(A)[]/Array(B)[])
     end
     @test Zygote.gradient(foo2, M)[1] ≈ num_grad(foo2, M) atol = 1e-8
+end
+
+@testset "vumps with $atype" for atype in [Array, CuArray]
+    Random.seed!(100)
+    χ = 10
+    model = Ising()
+    
+    function foo1(β) 
+        M = atype(model_tensor(model, β))
+        env = vumps_env(M; χ=χ, tol=1e-15, maxiter=10, verbose = true)
+        magnetisation(env,Ising(),β)
+    end
+    for β = 0.2:0.2:0.8
+        @show β
+        @test Zygote.gradient(foo1, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    end
+
+    function foo2(β)
+        M = atype(model_tensor(model, β))
+        env = obs_env(M; χ = χ, tol = 1e-20, maxiter = 10, verbose = true)
+        magnetisation(env,Ising(),β)
+    end
+    for β = 0.1:0.1:0.4
+        @show β
+        @test Zygote.gradient(foo2, β)[1] ≈ magofdβ(model,β) atol = 1e-8
+    end
 end

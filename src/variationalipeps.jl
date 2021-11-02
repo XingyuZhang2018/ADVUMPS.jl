@@ -17,7 +17,7 @@ function energy(h, ipeps::IPEPS, oc, key; verbose = false)
     ap = reshape(ap, D, D, D, D, s, s)
     a = ein"ijklaa -> ijkl"(ap)
 
-    env = obs_env(model, a; atype = atype, folder = folder, χ = χ, tol = tol, maxiter = maxiter, verbose = verbose, savefile = true, updown = true)
+    env = obs_env(a; χ = χ, tol = tol, maxiter = maxiter, verbose = verbose)
     e = expectationvalue(h, ap, env, oc)
     return e
 end
@@ -28,21 +28,21 @@ end
 optimise the follow two einsum contractions for the given `D` and `χ` which are used to calculate the energy of the 2-site hamiltonian:
 
 ```
-                                          a ────┬──c─ d
-a ────┬──c──d──┬──── f                    │     b     │
-│     b        e     │                    ├─ e ─┼─ f ─┤
-├─ g ─┼─   h  ─┼─ i ─┤                    │     g     │
-│     k        n     │                    ├─ h ─┼─ i ─┤
-j ────┴──l──m──┴──── o                    │     k     │
-                                          j ────┴──l─ m 
+                                            a ────┬──── c          
+a ────┬──c ──┬──── f                        │     b     │  
+│     b      e     │                        ├─ e ─┼─ f ─┤  
+├─ g ─┼─  h ─┼─ i ─┤                        g     h     i 
+│     k      n     │                        ├─ j ─┼─ k ─┤ 
+j ────┴──l ──┴──── o                        │     m     │ 
+                                            l ────┴──── n 
 ```
 where the central two block are six order tensor have extra bond `pq` and `rs`
 """
 function optcont(D::Int, χ::Int)
-    sd = Dict('a' => χ, 'b' => D^2,'c' => χ, 'd' => χ, 'e' => D^2, 'f' => χ, 'g' => D^2, 'h' => D^2, 'i' => D^2, 'j' => χ, 'k' => D^2, 'l' => χ, 'm' => χ, 'n' => D^2, 'o' => χ, 'p' => 2, 'q' => 2, 'r' => 2, 's' => 2)
-    oc1 = optimize_greedy(ein"agj,abc,gkhbpq,jkl,cd,lm,fio,def,hniers,mno -> pqrs", sd; method=MinSpaceDiff())
-    sd = Dict('a' => χ, 'b' => D^2, 'c' => χ, 'd' => χ, 'e' => D^2, 'f' => D^2, 'g' => D^2, 'h' => D^2, 'i' => D^2, 'j' => χ, 'k' => D^2, 'l' => χ, 'm' => χ, 'p' => 2, 'q' => 2, 'r' => 2, 's' => 2)
-    oc2 = optimize_greedy(ein"aehj,abc,cd,egfbpq,hkigrs,jkl,lm,dfim -> pqrs", sd; method=MinSpaceDiff())
+    sd = Dict('a' => χ, 'b' => D^2,'c' => χ, 'e' => D^2, 'f' => χ, 'g' => D^2, 'h' => D^2, 'i' => D^2, 'j' => χ, 'k' => D^2, 'l' => χ, 'n' => D^2, 'o' => χ, 'p' => 2, 'q' => 2, 'r' => 2, 's' => 2)
+    oc1 = optimize_greedy(ein"agj,abc,gkhbpq,jkl,fio,cef,hniers,lno -> pqrs", sd; method=MinSpaceDiff())
+    sd = Dict('a' => χ, 'b' => D^2, 'c' => χ, 'e' => D^2, 'f' => D^2, 'g' => χ, 'h' => D^2, 'i' => χ, 'j' => D^2, 'k' => D^2, 'l' => χ, 'm' => D^2, 'n' => χ, 'r' => 2, 's' => 2, 'p' => 2, 'q' => 2)
+    oc2 = optimize_greedy(ein"abc,aeg,ehfbpq,cfi,gjl,jmkhrs,ikn,lmn -> pqrs", sd; method=MinSpaceDiff())
     oc1, oc2
 end
 
@@ -54,22 +54,20 @@ described by rank-6 tensor `ap` each and an environment described by
 a `SquareCTMRGRuntime` `env`.
 """
 function expectationvalue(h, ap, env, oc)
-    M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FL, FR = env
+    M, ALu, Cu, ARu, ALd, Cd, ARd, FLo, FRo, FLu, FRu = env
+    ACu = ein"abc,cd -> abd"(ALu, Cu)
+    ACd = ein"abc,cd -> abd"(ALd, Cd)
     oc1, oc2 = oc
     ap /= norm(ap)
     etol = 0
     
-    lr = oc1(FLo,ALu,ap,ALd,Cu,Cd,FRo,ARu,ap,ARd)
+    lr = oc1(FLo, ACu, ap, ACd, FRo, ARu, ap, ARd)
     e = ein"pqrs, pqrs -> "(lr,h)
     n = ein"pprr -> "(lr)
     println("── = $(Array(e)[]/Array(n)[])") 
     etol += Array(e)[]/Array(n)[]
 
-    _, BgFL = bigleftenv(ALu, ALd, M)
-    _, BgFR = bigrightenv(ARu, ARd, M)
-    # BgFL = ein"cde, abc -> abde"(FLo[1,1],FL[2,1])
-    # BgFR = ein"abc, cde -> adbe"(FRo[1,2],FR[2,2])
-    lr2 = oc2(BgFL,ALu,Cu,ap,ap,ALd,Cd,BgFR)
+    lr2 = oc2(ACu, FLu, ap, FRu, FLo, ap, FRo, ACd)
     e2 = ein"pqrs, pqrs -> "(lr2,h)
     n2 = ein"pprr -> "(lr2)
     println("| = $(Array(e2)[]/Array(n2)[])") 
