@@ -325,17 +325,6 @@ function ACCtoALAR(AC, C)
     AR = reshape(QC'*QAC, (D, d, D))
     errR = norm(LAC-LC)
 
-    # κ = min(3,D)
-    # uACC, sACC, vACC = mysvd(reshape(AC,(D*d, D))*C')
-    # AL = reshape(uACC[:,1:κ]*vACC[:,1:κ]', (D, d, D))
-    # errL = norm(AC-ein"abc,cd -> abd"(AL,C))
-    # # @show "svd2",errL,κ,sACC
-
-    # uCAC, sCAC, vCAC = mysvd(C'*reshape(AC,(D, d*D)))
-    # AR = reshape(uCAC[:,1:κ]*vCAC[:,1:κ]', (D, d, D))
-    # errR = norm(AC-ein"ab,bcd -> acd"(C,AR))
-    # # @show "svd2",errR,sCAC
-
     return AL, AR, errL, errR
 end
 
