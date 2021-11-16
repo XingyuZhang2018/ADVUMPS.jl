@@ -1,6 +1,6 @@
 using OMEinsum,OMEinsumContractionOrders,Random
 
-function generate_vertical_rules(;Nv=2,χ=800)
+function generate_vertical_rules(;Nv=2,χ=80)
 	eincode = EinCode(((1,2,3,4,5),# T1
 	(6,7,8,9,10),#T2 (dag)
 	(2,6,11,12), #swapgate(nl,nu)
@@ -13,16 +13,17 @@ function generate_vertical_rules(;Nv=2,χ=800)
 	(20,19,30,31),#swapgate(nf,nr)
 	(25,31,32,33),#swapgate(nf,nr)
 	(23,33,9,34), #swapgate(nl,nu)
-	(15,30,14,32), #hamiltonian (ij di dj)
-	(35,12,1,36), # Eup: E3
+	(35,12,1,36), # ACu: E3
 	(36,18,5,37), # FRu: E8
 	(37,29,22,38), # FRo: E4
-	(38,26,28,39),# Edn: E6
-	(39,24,34,40), # FLo: E1
-	(40,7,11,35) # FLu: E7
-	),())
+	(39,26,28,38),# ACd: E6
+	(40,24,34,39), # FLo: E1
+	(35,7,11,40) # FLu: E7
+    ),
+    (15,30,14,32) #hamiltonian (ij di dj)
+    )
 		
-	size_dict = [2^Nv for i = 1:40]
+	size_dict = [2^Nv for _ = 1:40]
 	size_dict[[3;8;14;15;30;32;20;25]] .= 4
 	size_dict[35:40] .= χ
 	sd = Dict(i=>size_dict[i] for i = 1:40)
@@ -39,10 +40,10 @@ function generate_vertical_rules(;Nv=2,χ=800)
 	
 	return optcode
 end
-@non_differentiable generate_vertical_rules()
+# @non_differentiable generate_vertical_rules()
 const VERTICAL_RULES = generate_vertical_rules()
 
-function generate_horizontal_rules(;Nv=2,χ=800)
+function generate_horizontal_rules(;Nv=2,χ=80)
     eincode = EinCode(((1,2,3,4,5),# T1
     (3,4,21,22),#swapgate(nf,nu)
 
@@ -61,14 +62,15 @@ function generate_horizontal_rules(;Nv=2,χ=800)
 
     (20,32,31,14),#swapgate(nl,nu)
 
-    (21,24,23,25), #hamiltonian (ij di dj)
-    (38,7,29,39), #E1 FLo
-    (39,30,1,34), #E2 ALu
-    (34,33,11,35), #E3 ACu
+    (39,7,29,38), #E1 FLo
+    (39,30,1,34), #E2 ACu
+    (34,33,11,35), #E3 ARu
     (35,31,15,36), #E4 FRo
-    (36,19,32,37), #E5 ARd
-    (37,9,40,38), #E6 ACd
-	),())
+    (37,19,32,36), #E5 ARd
+    (38,9,40,37), #E6 ACd
+	),
+    (21,24,23,25) #hamiltonian (ij di dj)
+    )
 
     size_dict = [2^Nv for i = 1:40]
 	size_dict[[3;8;13;18;21;23;24;25]] .= 4
@@ -84,5 +86,5 @@ function generate_horizontal_rules(;Nv=2,χ=800)
 
 	return optcode
 end
-@non_differentiable generate_horizontal_rules()
+# @non_differentiable generate_horizontal_rules()
 const HORIZONTAL_RULES = generate_horizontal_rules()
