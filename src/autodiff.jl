@@ -15,7 +15,7 @@ using KrylovKit
 function ChainRulesCore.rrule(::typeof(Base.typed_hvcat), ::Type{T}, rows::Tuple{Vararg{Int}}, xs::S...) where {T,S}
     y = Base.typed_hvcat(T, rows, xs...)
     function back(ȳ)
-        return NO_FIELDS, NO_FIELDS, NO_FIELDS, permutedims(ȳ)...
+        return  NoTangent(),  NoTangent(),  NoTangent(), permutedims(ȳ)...
     end
     return y, back
 end
@@ -25,7 +25,7 @@ end
 function ChainRulesCore.rrule(::typeof(LinearAlgebra.norm), A::AbstractArray)
     n = norm(A)
     function back(Δ)
-        return NO_FIELDS, Δ .* A ./ (n + eps(0f0)), NO_FIELDS
+        return  NoTangent(), Δ .* A ./ (n + eps(0f0)),  NoTangent()
     end
     return n, back
 end
@@ -56,7 +56,7 @@ function ChainRulesCore.rrule(::typeof(leftenv), AL::AbstractArray{T}, M::Abstra
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"γcη,csap,γsα,βaα -> ηpβ"(FL, M, conj(AL), ξl) - ein"γcη,csap,ηpβ,βaα -> γsα"(FL, M, AL, ξl)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AL, conj(AL), ξl)
-        return NO_FIELDS, dAL, dM, NO_FIELDS...
+        return  NoTangent(), dAL, dM,  NoTangent()...
     end
     return (λl, FL), back
 end
@@ -87,7 +87,7 @@ function ChainRulesCore.rrule(::typeof(rightenv), AR::AbstractArray{T}, M::Abstr
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"γcη,csap,γsα,βaα -> ηpβ"(ξr, M, conj(AR), FR) - ein"γcη,csap,ηpβ,βaα -> γsα"(ξr, M, AR, FR)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(ξr, AR, conj(AR), FR)
-        return NO_FIELDS, dAR, dM, NO_FIELDS...
+        return  NoTangent(), dAR, dM,  NoTangent()...
     end
     return (λr, FR), back
 end
@@ -126,7 +126,7 @@ function ChainRulesCore.rrule(::typeof(ACenv),AC::AbstractArray{T}, FL::Abstract
         dFL = -ein"ηpβ,βaα,csap,γsα -> γcη"(AC, FR, M, ξ)
         dM = -ein"γcη,ηpβ,γsα,βaα -> csap"(FL, AC, ξ, FR)
         dFR = -ein"ηpβ,γcη,csap,γsα -> βaα"(AC, FL, M, ξ)
-        return NO_FIELDS, NO_FIELDS, dFL, dM, dFR
+        return  NoTangent(),  NoTangent(), dFL, dM, dFR
     end
     return (λAC, AC), back
 end
@@ -158,7 +158,7 @@ function ChainRulesCore.rrule(::typeof(Cenv), C::AbstractArray{T}, FL::AbstractA
         # @show info ein"ab,ab ->"(C,ξ)[] ein"γp,γp -> "(C,dC)[]
         dFL = -ein"ηβ,βaα,γα -> γaη"(C, FR, ξ)
         dFR = -ein"ηβ,γcη,γα -> βcα"(C, FL, ξ)
-        return NO_FIELDS, NO_FIELDS, dFL, dFR
+        return  NoTangent(),  NoTangent(), dFL, dFR
     end
     return (λC, C), back
 end
@@ -170,7 +170,7 @@ function ChainRulesCore.rrule(::typeof(qrpos), A::AbstractArray{T,2}) where {T}
     function back((dQ, dR))
         M = R * dR' - dQ' * Q
         dA = (UpperTriangular(R + I * 1e-6) \ (dQ + Q * Symmetric(M, :L))' )'
-        return NO_FIELDS, dA
+        return  NoTangent(), dA
     end
     return (Q, R), back
 end
@@ -180,7 +180,7 @@ function ChainRulesCore.rrule(::typeof(lqpos), A::AbstractArray{T,2}) where {T}
     function back((dL, dQ))
         M = L' * dL - dQ * Q'
         dA = LowerTriangular(L + I * 1e-6)' \ (dQ + Symmetric(M, :L) * Q)
-        return NO_FIELDS, dA
+        return  NoTangent(), dA
     end
     return (L, Q), back
 end
@@ -216,7 +216,7 @@ function ChainRulesCore.rrule(::typeof(bigleftenv), AL::AbstractArray{T}, M::Abs
         # abs(errL) > 1e-1 && throw("FL and ξl aren't orthometric. err = $(errL)")
         dAL = -ein"dcba,ckge,bjhk,aji,fghi -> def"(FL4, M, M, AL, ξl) -ein"dcba,def,ckge,bjhk,fghi -> aji"(FL4, AL, M, M, ξl)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(FL4, AL, M, AL, ξl) -ein"dcba,def,ckge,aji,fghi -> bjhk"(FL4, AL, M, AL, ξl)
-        return NO_FIELDS, dAL, dM, NO_FIELDS...
+        return  NoTangent(), dAL, dM,  NoTangent()...
     end
     return (λl, FL4), back
 end
@@ -251,7 +251,7 @@ function ChainRulesCore.rrule(::typeof(bigrightenv), AR::AbstractArray{T}, M::Ab
         # abs(errR) > 1e-1 && throw("FR and ξr aren't orthometric. err = $(errR)")
         dAR = -ein"dcba,ckge,bjhk,aji,fghi -> def"(ξr, M, M, AR,FR4) -ein"dcba,def,ckge,bjhk,fghi -> aji"(ξr, AR, M, M, FR4)
         dM = -ein"dcba,def,bjhk,aji,fghi -> ckge"(ξr, AR, M, AR, FR4) -ein"dcba,def,ckge,aji,fghi -> bjhk"(ξr, AR, M, AR, FR4)
-        return NO_FIELDS, dAR, dM, NO_FIELDS...
+        return  NoTangent(), dAR, dM,  NoTangent()...
     end
     return (λr, FR4), back
 end
